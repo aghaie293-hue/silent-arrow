@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Silent Arrows Analyzer</title>
+    <title>Silent Arrows - Biomechanics AI</title>
+    
+    <!-- کتابخانه‌های هوش مصنوعی MediaPipe Pose -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
     <style>
         body {
             margin: 0;
@@ -17,18 +22,19 @@
             min-height: 100vh;
         }
         h2 { 
-            margin-bottom: 10px; 
-            font-size: 18px;
+            margin-bottom: 8px; 
+            font-size: 17px;
+            color: #00e676;
         }
         .camera-container {
             position: relative;
             width: 94vw;
-            max-width: 640px;
-            aspect-ratio: 3/4; /* کادر عمودی مناسب قد تیرانداز در حالت ایستاده */
+            max-width: 600px;
+            aspect-ratio: 3/4;
             background: #000;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            border: 2px solid #333;
         }
         video, canvas {
             position: absolute;
@@ -39,45 +45,37 @@
             object-fit: cover;
         }
         .controls {
-            margin-top: 15px;
+            margin-top: 12px;
             display: flex;
-            gap: 12px;
+            gap: 10px;
         }
         button {
-            padding: 12px 20px;
+            padding: 10px 18px;
             font-size: 14px;
             font-weight: bold;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            background-color: #00c853;
             color: white;
-            box-shadow: 0 2px 8px rgba(0,200,83,0.4);
             transition: 0.2s;
         }
-        button.secondary {
-            background-color: #2979ff;
-            box-shadow: 0 2px 8px rgba(41,121,255,0.4);
-        }
-        button:active {
-            transform: scale(0.95);
-        }
+        .btn-green { background-color: #00c853; }
+        .btn-blue { background-color: #2979ff; }
+        button:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
 
-    <h2>پروژه سایلنت اررو | آنالیز بیومکانیک</h2>
+    <h2>پروژه سایلنت اررو | آنالیز بیومکانیک ریکرو</h2>
     
     <div class="camera-container">
-        <!-- خروجی زنده ویدیو -->
         <video id="webcam" autoplay playsinline muted></video>
-        <!-- بوم خطوط راهنما و محاسبات -->
         <canvas id="output_canvas"></canvas>
     </div>
 
     <div class="controls">
-        <button id="startBtn" onclick="startCamera()">روشن کردن دوربین</button>
-        <button id="switchBtn" class="secondary" style="display: none;" onclick="toggleCamera()">تغییر دوربین 🔄</button>
+        <button id="startBtn" class="btn-green" onclick="initApp()">روشن کردن هوش مصنوعی 🎯</button>
+        <button id="switchBtn" class="btn-blue" style="display: none;" onclick="toggleCamera()">تغییر دوربین 🔄</button>
     </div>
 
     <script>
@@ -87,100 +85,156 @@
         const startBtn = document.getElementById('startBtn');
         const switchBtn = document.getElementById('switchBtn');
 
-        let currentFacingMode = "environment"; // پیش‌فرض: دوربین پشت (محیط)
-        let currentStream = null;
+        let currentFacingMode = "user"; // پیش‌فرض سلفی
+        let camera = null;
+        let pose = null;
 
-        // متغیرهای فریم‌ریت (FPS)
+        // متغیرهای FPS
         let frameCount = 0;
         let currentFps = 0;
-        let lastFpsUpdate = performance.now();
+        let lastFpsTime = performance.now();
 
-        async function startCamera() {
-            // توقف استریم قبلی در صورت وجود
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-            }
+        async function initApp() {
+            startBtn.innerText = "در حال بارگذاری مدل هوش مصنوعی...";
+            startBtn.disabled = true;
 
-            const constraints = {
-                audio: false,
-                video: {
-                    facingMode: currentFacingMode,
-                    width: { ideal: 1280, max: 1920 },
-                    height: { ideal: 720, max: 1080 },
-                    frameRate: { ideal: 60, min: 30 }
-                }
-            };
+            // راه‌اندازی MediaPipe Pose
+            pose = new Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
 
-            try {
-                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = currentStream;
-                
-                video.onloadedmetadata = () => {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    requestAnimationFrame(drawFrame);
-                };
+            pose.setOptions({
+                modelComplexity: 1, // 0=سریع‌ترین، 1=متعادل، 2=بسیار دقیق
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
 
-                startBtn.style.display = 'none';
-                switchBtn.style.display = 'inline-block';
-            } catch (err) {
-                // اگر دوربین پشت در دسترس نبود، با دوربین جلو تست کن
-                if (currentFacingMode === "environment") {
-                    currentFacingMode = "user";
-                    startCamera();
-                } else {
-                    alert("خطا در باز کردن دوربین: " + err);
-                }
-            }
+            pose.onResults(onPoseResults);
+
+            setupCamera();
+        }
+
+        function setupCamera() {
+            if (camera) camera.stop();
+
+            camera = new Camera(video, {
+                onFrame: async () => {
+                    await pose.send({ image: video });
+                },
+                width: 640,
+                height: 480,
+                facingMode: currentFacingMode
+            });
+
+            camera.start();
+            startBtn.style.display = 'none';
+            switchBtn.style.display = 'inline-block';
         }
 
         function toggleCamera() {
-            currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
-            startCamera();
+            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+            setupCamera();
         }
 
-        function drawFrame(now) {
+        // تابع محاسبه زاویه سه نقطه
+        function findAngle(p1, p2, p3) {
+            const radians = Math.atan2(p3.y - p2.y, p3.x - p2.x) - Math.atan2(p1.y - p2.y, p1.x - p2.x);
+            let angle = Math.abs((radians * 180.0) / Math.PI);
+            if (angle > 180.0) angle = 360 - angle;
+            return Math.round(angle);
+        }
+
+        function onPoseResults(results) {
+            // محاسبه FPS
+            const now = performance.now();
             frameCount++;
-            if (now - lastFpsUpdate >= 500) {
-                currentFps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+            if (now - lastFpsTime >= 500) {
+                currentFps = Math.round((frameCount * 1000) / (now - lastFpsTime));
                 frameCount = 0;
-                lastFpsUpdate = now;
+                lastFpsTime = now;
             }
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
             const w = canvas.width;
             const h = canvas.height;
 
-            // کادر راهنمای استقرار تیرانداز (سبز فسفری)
-            ctx.strokeStyle = "rgba(0, 230, 118, 0.85)";
-            ctx.lineWidth = 3;
-            
-            // مستطیل بالاتنه و بازوهای کشش
-            ctx.strokeRect(w * 0.1, h * 0.1, w * 0.8, h * 0.8);
-            
-            // خط افقی راستای شانه تا شانه (Shoulder Alignment Line)
-            ctx.setLineDash([6, 6]);
-            ctx.beginPath();
-            ctx.moveTo(w * 0.15, h * 0.4);
-            ctx.lineTo(w * 0.85, h * 0.4);
-            ctx.stroke();
-            ctx.setLineDash([]); // ریست خط‌چین
+            ctx.clearRect(0, 0, w, h);
 
-            // کارت نمایش FPS و رزولوشن
-            ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-            ctx.fillRect(15, 15, 160, 60);
+            if (results.poseLandmarks) {
+                const lm = results.poseLandmarks;
+
+                // نقاط کلیدی شانه (11: چپ, 12: راست)
+                const leftShoulder = { x: lm[11].x * w, y: lm[11].y * h, vis: lm[11].visibility };
+                const rightShoulder = { x: lm[12].x * w, y: lm[12].y * h, vis: lm[12].visibility };
+
+                // اگر هر دو شانه قابل رویت بودند
+                if (leftShoulder.vis > 0.5 && rightShoulder.vis > 0.5) {
+                    // محاسبه زاویه شیب شانه نسبت به افق
+                    const deltaY = rightShoulder.y - leftShoulder.y;
+                    const deltaX = rightShoulder.x - leftShoulder.x;
+                    const shoulderAngle = Math.abs((Math.atan2(deltaY, deltaX) * 180) / Math.PI);
+                    const tiltError = Math.abs(180 - shoulderAngle); // انحراف از خط صاف
+
+                    // اگر انحراف کمتر از 3.5 درجه باشد، سبز (تراز بیومکانیک)، در غیر این صورت قرمز
+                    const isBalanced = tiltError <= 3.5;
+                    const lineColor = isBalanced ? "#00e676" : "#ff3d00";
+
+                    // ۱. رسم خط راستای شانه به شانه
+                    ctx.strokeStyle = lineColor;
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(leftShoulder.x, leftShoulder.y);
+                    ctx.lineTo(rightShoulder.x, rightShoulder.y);
+                    ctx.stroke();
+
+                    // نقاط روی شانه
+                    ctx.fillStyle = lineColor;
+                    ctx.beginPath();
+                    ctx.arc(leftShoulder.x, leftShoulder.y, 7, 0, 2 * Math.PI);
+                    ctx.arc(rightShoulder.x, rightShoulder.y, 7, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    // متن وضعیت تراز شانه
+                    ctx.fillStyle = lineColor;
+                    ctx.font = "bold 15px Tahoma";
+                    ctx.fillText(isBalanced ? "✓ تراز شانه عالی" : `خطای تراز: ${tiltError.toFixed(1)}°`, 
+                                 Math.min(leftShoulder.x, rightShoulder.x), 
+                                 Math.min(leftShoulder.y, rightShoulder.y) - 15);
+                }
+
+                // محاسبه زاویه آرنج کشش دست راست (12: شانه، 14: آرنج، 16: مچ)
+                if (lm[12].visibility > 0.5 && lm[14].visibility > 0.5 && lm[16].visibility > 0.5) {
+                    const elbowAngle = findAngle(lm[12], lm[14], lm[16]);
+                    
+                    // رسم خطوط بازو و ساعد
+                    ctx.strokeStyle = "#2979ff";
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(lm[12].x * w, lm[12].y * h);
+                    ctx.lineTo(lm[14].x * w, lm[14].y * h);
+                    ctx.lineTo(lm[16].x * w, lm[16].y * h);
+                    ctx.stroke();
+
+                    // نمایش زاویه آرنج
+                    ctx.fillStyle = "#ffff00";
+                    ctx.font = "bold 14px Tahoma";
+                    ctx.fillText(`زاویه آرنج: ${elbowAngle}°`, lm[14].x * w + 10, lm[14].y * h);
+                }
+            }
+
+            // باکس اطلاعات گوشه تصویر
+            ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+            ctx.fillRect(10, 10, 140, 50);
 
             ctx.fillStyle = "#00e676";
-            ctx.font = "bold 15px Tahoma, sans-serif";
+            ctx.font = "bold 14px Tahoma";
             ctx.direction = "ltr";
-            ctx.fillText(`FPS: ${currentFps}`, 25, 38);
-
+            ctx.fillText(`AI FPS: ${currentFps}`, 20, 30);
             ctx.fillStyle = "#ffffff";
-            ctx.font = "12px Tahoma, sans-serif";
-            ctx.fillText(`Mode: ${currentFacingMode === "environment" ? "Back" : "Front"}`, 25, 58);
-
-            requestAnimationFrame(drawFrame);
+            ctx.font = "11px Tahoma";
+            ctx.fillText(`Mode: ${currentFacingMode}`, 20, 48);
         }
     </script>
 </body>
