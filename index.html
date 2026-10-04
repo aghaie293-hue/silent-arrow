@@ -16,12 +16,15 @@
             justify-content: center;
             min-height: 100vh;
         }
-        h2 { margin-bottom: 10px; }
+        h2 { 
+            margin-bottom: 10px; 
+            font-size: 18px;
+        }
         .camera-container {
             position: relative;
-            width: 90vw;
+            width: 94vw;
             max-width: 640px;
-            aspect-ratio: 4/3;
+            aspect-ratio: 3/4; /* کادر عمودی مناسب قد تیرانداز در حالت ایستاده */
             background: #000;
             border-radius: 12px;
             overflow: hidden;
@@ -38,17 +41,26 @@
         .controls {
             margin-top: 15px;
             display: flex;
-            gap: 10px;
+            gap: 12px;
         }
         button {
-            padding: 10px 20px;
-            font-size: 15px;
+            padding: 12px 20px;
+            font-size: 14px;
             font-weight: bold;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             background-color: #00c853;
             color: white;
+            box-shadow: 0 2px 8px rgba(0,200,83,0.4);
+            transition: 0.2s;
+        }
+        button.secondary {
+            background-color: #2979ff;
+            box-shadow: 0 2px 8px rgba(41,121,255,0.4);
+        }
+        button:active {
+            transform: scale(0.95);
         }
     </style>
 </head>
@@ -57,55 +69,116 @@
     <h2>پروژه سایلنت اررو | آنالیز بیومکانیک</h2>
     
     <div class="camera-container">
-        <!-- خروجی ویدیو خام -->
-        <video id="webcam" autoplay playsinline></video>
-        <!-- بوم رسم خطوط هوش مصنوعی و کادر -->
+        <!-- خروجی زنده ویدیو -->
+        <video id="webcam" autoplay playsinline muted></video>
+        <!-- بوم خطوط راهنما و محاسبات -->
         <canvas id="output_canvas"></canvas>
     </div>
 
     <div class="controls">
         <button id="startBtn" onclick="startCamera()">روشن کردن دوربین</button>
+        <button id="switchBtn" class="secondary" style="display: none;" onclick="toggleCamera()">تغییر دوربین 🔄</button>
     </div>
 
     <script>
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const switchBtn = document.getElementById('switchBtn');
+
+        let currentFacingMode = "environment"; // پیش‌فرض: دوربین پشت (محیط)
+        let currentStream = null;
+
+        // متغیرهای فریم‌ریت (FPS)
+        let frameCount = 0;
+        let currentFps = 0;
+        let lastFpsUpdate = performance.now();
 
         async function startCamera() {
+            // توقف استریم قبلی در صورت وجود
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                audio: false,
+                video: {
+                    facingMode: currentFacingMode,
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 60, min: 30 }
+                }
+            };
+
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 640, height: 480, facingMode: "user" }
-                });
-                video.srcObject = stream;
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+                
                 video.onloadedmetadata = () => {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                    drawFrame();
+                    requestAnimationFrame(drawFrame);
                 };
-                document.getElementById('startBtn').style.display = 'none';
+
+                startBtn.style.display = 'none';
+                switchBtn.style.display = 'inline-block';
             } catch (err) {
-                alert("دسترسی به دوربین داده نشد یا خطایی رخ داد: " + err);
+                // اگر دوربین پشت در دسترس نبود، با دوربین جلو تست کن
+                if (currentFacingMode === "environment") {
+                    currentFacingMode = "user";
+                    startCamera();
+                } else {
+                    alert("خطا در باز کردن دوربین: " + err);
+                }
             }
         }
 
-        function drawFrame() {
-            // رسم کادر راهنما روی تصویر زنده
+        function toggleCamera() {
+            currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+            startCamera();
+        }
+
+        function drawFrame(now) {
+            frameCount++;
+            if (now - lastFpsUpdate >= 500) {
+                currentFps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+                frameCount = 0;
+                lastFpsUpdate = now;
+            }
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // رسم کادر مرکزی مستطیل و دایره راهنما
-            ctx.strokeStyle = "#ff3333"; // قرمز پیش‌فرض
-            ctx.lineWidth = 3;
-            
-            // مستطیل بالاتنه
             const w = canvas.width;
             const h = canvas.height;
-            ctx.strokeRect(w * 0.15, h * 0.1, w * 0.7, h * 0.8);
+
+            // کادر راهنمای استقرار تیرانداز (سبز فسفری)
+            ctx.strokeStyle = "rgba(0, 230, 118, 0.85)";
+            ctx.lineWidth = 3;
             
-            // دایره مرکز قفسه سینه / سر
+            // مستطیل بالاتنه و بازوهای کشش
+            ctx.strokeRect(w * 0.1, h * 0.1, w * 0.8, h * 0.8);
+            
+            // خط افقی راستای شانه تا شانه (Shoulder Alignment Line)
+            ctx.setLineDash([6, 6]);
             ctx.beginPath();
-            ctx.arc(w / 2, h * 0.45, 40, 0, 2 * Math.PI);
+            ctx.moveTo(w * 0.15, h * 0.4);
+            ctx.lineTo(w * 0.85, h * 0.4);
             ctx.stroke();
+            ctx.setLineDash([]); // ریست خط‌چین
+
+            // کارت نمایش FPS و رزولوشن
+            ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+            ctx.fillRect(15, 15, 160, 60);
+
+            ctx.fillStyle = "#00e676";
+            ctx.font = "bold 15px Tahoma, sans-serif";
+            ctx.direction = "ltr";
+            ctx.fillText(`FPS: ${currentFps}`, 25, 38);
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "12px Tahoma, sans-serif";
+            ctx.fillText(`Mode: ${currentFacingMode === "environment" ? "Back" : "Front"}`, 25, 58);
 
             requestAnimationFrame(drawFrame);
         }
