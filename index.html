@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silent Arrows Analyzer</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Tahoma, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        h2 { margin-bottom: 10px; }
+        .camera-container {
+            position: relative;
+            width: 90vw;
+            max-width: 640px;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+        }
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 15px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: #00c853;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>پروژه سایلنت اررو | آنالیز بیومکانیک</h2>
+    
+    <div class="camera-container">
+        <!-- خروجی ویدیو خام -->
+        <video id="webcam" autoplay playsinline></video>
+        <!-- بوم رسم خطوط هوش مصنوعی و کادر -->
+        <canvas id="output_canvas"></canvas>
+    </div>
+
+    <div class="controls">
+        <button id="startBtn" onclick="startCamera()">روشن کردن دوربین</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('output_canvas');
+        const ctx = canvas.getContext('2d');
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: "user" }
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    drawFrame();
+                };
+                document.getElementById('startBtn').style.display = 'none';
+            } catch (err) {
+                alert("دسترسی به دوربین داده نشد یا خطایی رخ داد: " + err);
+            }
+        }
+
+        function drawFrame() {
+            // رسم کادر راهنما روی تصویر زنده
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // رسم کادر مرکزی مستطیل و دایره راهنما
+            ctx.strokeStyle = "#ff3333"; // قرمز پیش‌فرض
+            ctx.lineWidth = 3;
+            
+            // مستطیل بالاتنه
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.strokeRect(w * 0.15, h * 0.1, w * 0.7, h * 0.8);
+            
+            // دایره مرکز قفسه سینه / سر
+            ctx.beginPath();
+            ctx.arc(w / 2, h * 0.45, 40, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            requestAnimationFrame(drawFrame);
+        }
+    </script>
+</body>
+</html>
