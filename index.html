@@ -3,38 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Silent Arrows - Biomechanics AI</title>
+    <title>Silent Arrows - Full Body Biomechanics</title>
     
-    <!-- کتابخانه‌های هوش مصنوعی MediaPipe Pose -->
+    <!-- MediaPipe Pose & Camera Utils -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
     <style>
         body {
             margin: 0;
-            background-color: #121212;
+            background-color: #11141a;
             color: #ffffff;
-            font-family: Tahoma, sans-serif;
+            font-family: Tahoma, 'Segoe UI', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             min-height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
         }
         h2 { 
-            margin-bottom: 8px; 
-            font-size: 17px;
+            margin: 6px 0; 
+            font-size: 16px;
             color: #00e676;
+            text-align: center;
         }
         .camera-container {
             position: relative;
-            width: 94vw;
-            max-width: 600px;
-            aspect-ratio: 3/4;
+            width: 95vw;
+            max-width: 520px;
+            aspect-ratio: 9/16; /* نسبت استاندارد عمودی موبایل */
             background: #000;
-            border-radius: 12px;
+            border-radius: 14px;
             overflow: hidden;
-            border: 2px solid #333;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            border: 1px solid #333;
         }
         video, canvas {
             position: absolute;
@@ -45,7 +49,7 @@
             object-fit: cover;
         }
         .controls {
-            margin-top: 12px;
+            margin-top: 10px;
             display: flex;
             gap: 10px;
         }
@@ -59,14 +63,40 @@
             color: white;
             transition: 0.2s;
         }
-        .btn-green { background-color: #00c853; }
-        .btn-blue { background-color: #2979ff; }
-        button:active { transform: scale(0.95); }
+        .btn-start { background-color: #00c853; }
+        .btn-cam { background-color: #2979ff; }
+        button:active { transform: scale(0.96); }
+
+        .dashboard {
+            margin-top: 8px;
+            width: 95vw;
+            max-width: 520px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            font-size: 12px;
+        }
+        .card {
+            background: #1c212c;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border-right: 4px solid #00e676;
+            display: flex;
+            justify-content: space-between;
+        }
+        .card.warn {
+            border-right-color: #ff3d00;
+        }
+        .card-val {
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
 
-    <h2>پروژه سایلنت اررو | آنالیز بیومکانیک ریکرو</h2>
+    <h2>پروژه سایلنت اررو | آنالیز بیومکانیک فول‌بادی ریکرو</h2>
     
     <div class="camera-container">
         <video id="webcam" autoplay playsinline muted></video>
@@ -74,8 +104,28 @@
     </div>
 
     <div class="controls">
-        <button id="startBtn" class="btn-green" onclick="initApp()">روشن کردن هوش مصنوعی 🎯</button>
-        <button id="switchBtn" class="btn-blue" style="display: none;" onclick="toggleCamera()">تغییر دوربین 🔄</button>
+        <button id="startBtn" class="btn-start" onclick="initApp()">شروع آنالیز بیومکانیک 🏹</button>
+        <button id="switchBtn" class="btn-cam" style="display: none;" onclick="toggleCamera()">تغییر دوربین 🔄</button>
+    </div>
+
+    <!-- داشبورد پارامترهای بیومکانیک در زیر تصویر -->
+    <div class="dashboard" id="dashboard" style="display: none;">
+        <div class="card" id="cardShoulder">
+            <span>تراز شانه:</span>
+            <span class="card-val" id="valShoulder">--</span>
+        </div>
+        <div class="card" id="cardSpine">
+            <span>شیب تنه:</span>
+            <span class="card-val" id="valSpine">--</span>
+        </div>
+        <div class="card" id="cardDrawElbow">
+            <span>آرنج کشش:</span>
+            <span class="card-val" id="valDrawElbow">--</span>
+        </div>
+        <div class="card" id="cardBowElbow">
+            <span>آرنج کمان:</span>
+            <span class="card-val" id="valBowElbow">--</span>
+        </div>
     </div>
 
     <script>
@@ -84,28 +134,29 @@
         const ctx = canvas.getContext('2d');
         const startBtn = document.getElementById('startBtn');
         const switchBtn = document.getElementById('switchBtn');
+        const dashboard = document.getElementById('dashboard');
 
-        let currentFacingMode = "user"; // پیش‌فرض سلفی
+        let currentFacingMode = "user"; // پیش‌فرض دوربین سلفی
         let camera = null;
         let pose = null;
 
-        // متغیرهای FPS
+        // شمارنده FPS
         let frameCount = 0;
         let currentFps = 0;
         let lastFpsTime = performance.now();
 
         async function initApp() {
-            startBtn.innerText = "در حال بارگذاری مدل هوش مصنوعی...";
+            startBtn.innerText = "در حال بارگذاری مدل آناتومیک...";
             startBtn.disabled = true;
 
-            // راه‌اندازی MediaPipe Pose
             pose = new Pose({
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
             });
 
             pose.setOptions({
-                modelComplexity: 1, // 0=سریع‌ترین، 1=متعادل، 2=بسیار دقیق
+                modelComplexity: 1,
                 smoothLandmarks: true,
+                enableSegmentation: false,
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
             });
@@ -122,14 +173,15 @@
                 onFrame: async () => {
                     await pose.send({ image: video });
                 },
-                width: 640,
-                height: 480,
+                width: 720,
+                height: 1280,
                 facingMode: currentFacingMode
             });
 
             camera.start();
             startBtn.style.display = 'none';
             switchBtn.style.display = 'inline-block';
+            dashboard.style.display = 'grid';
         }
 
         function toggleCamera() {
@@ -137,12 +189,30 @@
             setupCamera();
         }
 
-        // تابع محاسبه زاویه سه نقطه
-        function findAngle(p1, p2, p3) {
-            const radians = Math.atan2(p3.y - p2.y, p3.x - p2.x) - Math.atan2(p1.y - p2.y, p1.x - p2.x);
-            let angle = Math.abs((radians * 180.0) / Math.PI);
-            if (angle > 180.0) angle = 360 - angle;
-            return Math.round(angle);
+        // محاسبه زاویه سه مفصل (درجه)
+        function calculateAngle(A, B, C) {
+            const rad = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
+            let deg = Math.abs((rad * 180.0) / Math.PI);
+            if (deg > 180.0) deg = 360.0 - deg;
+            return Math.round(deg);
+        }
+
+        // رسم خط بین دو نقطه
+        function drawBone(p1, p2, color = "rgba(0, 230, 118, 0.7)", width = 3) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+        }
+
+        // رسم مفصل
+        function drawJoint(p, color = "#ffffff", radius = 5) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius, 0, 2 * Math.PI);
+            ctx.fill();
         }
 
         function onPoseResults(results) {
@@ -162,79 +232,110 @@
 
             ctx.clearRect(0, 0, w, h);
 
-            if (results.poseLandmarks) {
-                const lm = results.poseLandmarks;
+            if (!results.poseLandmarks) return;
 
-                // نقاط کلیدی شانه (11: چپ, 12: راست)
-                const leftShoulder = { x: lm[11].x * w, y: lm[11].y * h, vis: lm[11].visibility };
-                const rightShoulder = { x: lm[12].x * w, y: lm[12].y * h, vis: lm[12].visibility };
+            // تبدیل تمام لندمارک‌ها به مختصات پیکسلی بوم
+            const lm = results.poseLandmarks.map(p => ({
+                x: p.x * w,
+                y: p.y * h,
+                vis: p.visibility
+            }));
 
-                // اگر هر دو شانه قابل رویت بودند
-                if (leftShoulder.vis > 0.5 && rightShoulder.vis > 0.5) {
-                    // محاسبه زاویه شیب شانه نسبت به افق
-                    const deltaY = rightShoulder.y - leftShoulder.y;
-                    const deltaX = rightShoulder.x - leftShoulder.x;
-                    const shoulderAngle = Math.abs((Math.atan2(deltaY, deltaX) * 180) / Math.PI);
-                    const tiltError = Math.abs(180 - shoulderAngle); // انحراف از خط صاف
+            // تعریف اتصالات اسکلتی بدن (Kinematic Chains)
+            const skeletonPairs = [
+                // تنه و لگن
+                [11, 12], [11, 23], [12, 24], [23, 24],
+                // دست چپ
+                [11, 13], [13, 15],
+                // دست راست
+                [12, 14], [14, 16],
+                // پای چپ
+                [23, 25], [25, 27],
+                // پای راست
+                [24, 26], [26, 28]
+            ];
 
-                    // اگر انحراف کمتر از 3.5 درجه باشد، سبز (تراز بیومکانیک)، در غیر این صورت قرمز
-                    const isBalanced = tiltError <= 3.5;
-                    const lineColor = isBalanced ? "#00e676" : "#ff3d00";
-
-                    // ۱. رسم خط راستای شانه به شانه
-                    ctx.strokeStyle = lineColor;
-                    ctx.lineWidth = 4;
-                    ctx.beginPath();
-                    ctx.moveTo(leftShoulder.x, leftShoulder.y);
-                    ctx.lineTo(rightShoulder.x, rightShoulder.y);
-                    ctx.stroke();
-
-                    // نقاط روی شانه
-                    ctx.fillStyle = lineColor;
-                    ctx.beginPath();
-                    ctx.arc(leftShoulder.x, leftShoulder.y, 7, 0, 2 * Math.PI);
-                    ctx.arc(rightShoulder.x, rightShoulder.y, 7, 0, 2 * Math.PI);
-                    ctx.fill();
-
-                    // متن وضعیت تراز شانه
-                    ctx.fillStyle = lineColor;
-                    ctx.font = "bold 15px Tahoma";
-                    ctx.fillText(isBalanced ? "✓ تراز شانه عالی" : `خطای تراز: ${tiltError.toFixed(1)}°`, 
-                                 Math.min(leftShoulder.x, rightShoulder.x), 
-                                 Math.min(leftShoulder.y, rightShoulder.y) - 15);
+            // رسم خطوط اسکلت پایه
+            skeletonPairs.forEach(([i, j]) => {
+                if (lm[i].vis > 0.4 && lm[j].vis > 0.4) {
+                    drawBone(lm[i], lm[j], "rgba(255, 255, 255, 0.45)", 2);
                 }
+            });
 
-                // محاسبه زاویه آرنج کشش دست راست (12: شانه، 14: آرنج، 16: مچ)
-                if (lm[12].visibility > 0.5 && lm[14].visibility > 0.5 && lm[16].visibility > 0.5) {
-                    const elbowAngle = findAngle(lm[12], lm[14], lm[16]);
-                    
-                    // رسم خطوط بازو و ساعد
-                    ctx.strokeStyle = "#2979ff";
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.moveTo(lm[12].x * w, lm[12].y * h);
-                    ctx.lineTo(lm[14].x * w, lm[14].y * h);
-                    ctx.lineTo(lm[16].x * w, lm[16].y * h);
-                    ctx.stroke();
-
-                    // نمایش زاویه آرنج
-                    ctx.fillStyle = "#ffff00";
-                    ctx.font = "bold 14px Tahoma";
-                    ctx.fillText(`زاویه آرنج: ${elbowAngle}°`, lm[14].x * w + 10, lm[14].y * h);
+            // رسم نقاط مفاصل
+            for (let i = 11; i <= 28; i++) {
+                if (lm[i].vis > 0.4) {
+                    drawJoint(lm[i], "#00e676", 4);
                 }
             }
 
-            // باکس اطلاعات گوشه تصویر
-            ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-            ctx.fillRect(10, 10, 140, 50);
+            // ================= ۱. آنالیز راستای شانه (Shoulder Alignment) =================
+            if (lm[11].vis > 0.5 && lm[12].vis > 0.5) {
+                const dy = lm[12].y - lm[11].y;
+                const dx = lm[12].x - lm[11].x;
+                const shoulderSlope = Math.abs((Math.atan2(dy, dx) * 180) / Math.PI);
+                const tilt = Math.abs(180 - shoulderSlope);
 
+                const isBalanced = tilt <= 3.5;
+                const shoulderColor = isBalanced ? "#00e676" : "#ff3d00";
+
+                drawBone(lm[11], lm[12], shoulderColor, 4);
+
+                document.getElementById('valShoulder').innerText = `${tilt.toFixed(1)}° ${isBalanced ? '✓' : '▲'}`;
+                document.getElementById('cardShoulder').className = isBalanced ? "card" : "card warn";
+            }
+
+            // ================= ۲. آنالیز زاویه شیب تنه (Postural Lean) =================
+            // خط بین مرکز شانه‌ها و مرکز لگن
+            if (lm[11].vis > 0.5 && lm[12].vis > 0.5 && lm[23].vis > 0.5 && lm[24].vis > 0.5) {
+                const midShoulder = { x: (lm[11].x + lm[12].x) / 2, y: (lm[11].y + lm[12].y) / 2 };
+                const midHip = { x: (lm[23].x + lm[24].x) / 2, y: (lm[23].y + lm[24].y) / 2 };
+
+                const spineDy = midHip.y - midShoulder.y;
+                const spineDx = midHip.x - midShoulder.x;
+                const spineAngle = Math.abs((Math.atan2(spineDy, spineDx) * 180) / Math.PI);
+                const spineDeviation = Math.abs(90 - spineAngle); // انحراف از حالت قائم ۹۰ درجه
+
+                const spineOk = spineDeviation <= 4.0;
+                drawBone(midShoulder, midHip, spineOk ? "#00e676" : "#ff9100", 3);
+
+                document.getElementById('valSpine').innerText = `${spineDeviation.toFixed(1)}° ${spineOk ? '✓' : '!'}`;
+                document.getElementById('cardSpine').className = spineOk ? "card" : "card warn";
+            }
+
+            // ================= ۳. زوایای آرنج دو دست =================
+            // بازوی راست (معمولاً دست کشش برای تیراندازان راست‌دست)
+            if (lm[12].vis > 0.5 && lm[14].vis > 0.5 && lm[16].vis > 0.5) {
+                const angleR = calculateAngle(lm[12], lm[14], lm[16]);
+                drawBone(lm[12], lm[14], "#2979ff", 3);
+                drawBone(lm[14], lm[16], "#2979ff", 3);
+                
+                // برچسب زاویه کنار آرنج
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 13px Tahoma";
+                ctx.fillText(`${angleR}°`, lm[14].x + 8, lm[14].y);
+                document.getElementById('valDrawElbow').innerText = `${angleR}°`;
+            }
+
+            // بازوی چپ (دست کمان)
+            if (lm[11].vis > 0.5 && lm[13].vis > 0.5 && lm[15].vis > 0.5) {
+                const angleL = calculateAngle(lm[11], lm[13], lm[15]);
+                drawBone(lm[11], lm[13], "#00bcd4", 3);
+                drawBone(lm[13], lm[15], "#00bcd4", 3);
+
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 13px Tahoma";
+                ctx.fillText(`${angleL}°`, lm[13].x - 35, lm[13].y);
+                document.getElementById('valBowElbow').innerText = `${angleL}°`;
+            }
+
+            // ================= برچسب FPS و وضوح =================
+            ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+            ctx.fillRect(8, 8, 120, 36);
             ctx.fillStyle = "#00e676";
-            ctx.font = "bold 14px Tahoma";
+            ctx.font = "bold 13px Tahoma";
             ctx.direction = "ltr";
-            ctx.fillText(`AI FPS: ${currentFps}`, 20, 30);
-            ctx.fillStyle = "#ffffff";
-            ctx.font = "11px Tahoma";
-            ctx.fillText(`Mode: ${currentFacingMode}`, 20, 48);
+            ctx.fillText(`AI FPS: ${currentFps}`, 15, 30);
         }
     </script>
 </body>
