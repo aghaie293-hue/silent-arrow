@@ -3,411 +3,433 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Silent Arrows | آنالیز بیومکانیک تیراندازی با کمان</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<title>Silent Arrows Analyzer — Pro</title>
+<!-- Stable MediaPipe CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 <style>
-:root{
-  --bg:#0d0f14; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
-  --txt:#e8eaef; --dim:#9aa0ad; --acc:#00e5a0; --acc2:#2979ff; --warn:#ff5252; --gold:#ffc400;
-}
-*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-html,body{margin:0;padding:0;}
-body{
-  background:var(--bg); color:var(--txt);
-  font-family:Tahoma,"Segoe UI",Vazirmatn,sans-serif;
-  min-height:100vh; display:flex; flex-direction:column; align-items:center;
-  padding-bottom:env(safe-area-inset-bottom);
-}
-h1,h2,h3{margin:6px 0;}
-.wrap{width:100%; max-width:640px; padding:10px 12px 40px;}
-.center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;}
-
-/* ---------- Gate ---------- */
-#gate{max-width:400px;width:92%;}
-#gate .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 20px;margin-top:30px;}
-#gate input{width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--line);
-  background:var(--panel2);color:var(--txt);font-size:16px;text-align:center;letter-spacing:2px;outline:none;}
-#gate input:focus{border-color:var(--acc);}
-.btn{border:none;border-radius:12px;padding:12px 18px;font-size:15px;font-weight:bold;cursor:pointer;
-  background:var(--acc);color:#002015;transition:filter .15s;}
-.btn:active{filter:brightness(.85);}
-.btn.secondary{background:var(--panel2);color:var(--txt);border:1px solid var(--line);}
-.btn.blue{background:var(--acc2);color:#fff;}
-.btn.danger{background:var(--warn);color:#fff;}
-.btn:disabled{opacity:.4;cursor:not-allowed;}
-.err{color:var(--warn);font-size:13px;min-height:18px;margin-top:8px;}
-
-/* ---------- Camera ---------- */
-.cam-box{position:relative;width:100%;aspect-ratio:3/4;background:#000;border-radius:16px;overflow:hidden;
-  border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.6);}
-#video,#cv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
-#cv{transform:scaleX(var(--mirror,0));}
-#camFlip{position:absolute;top:10px;left:10px;z-index:5;width:44px;height:44px;border-radius:50%;
-  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:20px;cursor:pointer;}
-#recBadge{position:absolute;top:12px;right:12px;z-index:5;background:rgba(255,0,0,.85);color:#fff;
-  padding:4px 10px;border-radius:20px;font-size:12px;font-weight:bold;display:none;}
-#shotFlash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s;}
-.overlay-hud{position:absolute;bottom:8px;right:8px;left:8px;z-index:4;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
-.pill{background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:11px;
-  padding:4px 9px;border-radius:14px;backdrop-filter:blur(4px);}
-.pill b{color:var(--acc);}
-
-/* ---------- Panels ---------- */
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px;}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.metric{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;}
-.metric .lbl{font-size:11px;color:var(--dim);}
-.metric .val{font-size:18px;font-weight:bold;color:var(--acc);}
-.metric .val.bad{color:var(--warn);}
-.metric .val.ok{color:var(--acc);}
-label.fld{display:block;font-size:12px;color:var(--dim);margin:8px 0 4px;}
-input[type=number]{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);
-  background:var(--panel2);color:var(--txt);font-size:15px;outline:none;}
-.status{font-size:13px;color:var(--dim);min-height:18px;margin-top:6px;}
-.big-timer{font-size:34px;font-weight:bold;color:var(--gold);text-align:center;min-height:44px;}
-.alerts li{background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.35);color:#ffb4b4;
-  border-radius:8px;padding:6px 10px;margin:5px 0;font-size:13px;list-style:none;}
-.alerts li.drill{background:rgba(41,121,255,.1);border-color:rgba(41,121,255,.4);color:#a9c8ff;}
-.controls{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.controls .full{grid-column:1/-1;}
-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
-th,td{border:1px solid var(--line);padding:5px 6px;text-align:center;}
-th{background:var(--panel2);color:var(--dim);font-weight:normal;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#0d0d12;color:#fff;font-family:Tahoma,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:10px}
+  h2{font-size:17px;margin:8px 0}
+  #status{font-size:13px;color:#00e5ff;min-height:20px;text-align:center;margin-bottom:6px}
+  #shotIndicator{font-size:16px;font-weight:bold;color:#ffd54f;min-height:24px;margin-bottom:6px}
+  .camera-container{position:relative;width:96vw;max-width:640px;aspect-ratio:3/4;background:#000;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,229,255,.25)}
+  video,canvas{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
+  #countdown{position:absolute;top:45%;left:0;right:0;text-align:center;font-size:64px;font-weight:900;color:#ff1745;text-shadow:0 0 20px #000;pointer-events:none;z-index:5}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;width:96vw;max-width:640px}
+  button{padding:12px 14px;font-size:14px;font-weight:bold;border:none;border-radius:10px;cursor:pointer;color:#fff;flex:1 1 45%}
+  #btnStart{background:#00c853;flex-basis:100%}
+  #btnSession{background:#2962ff;flex-basis:100%}
+  #btnSnap{background:#ff6d00}
+  #btnExcel{background:#00897b}
+  button:disabled{opacity:.4}
+  #previews{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;width:96vw;max-width:640px}
+  #previews img{width:72px;height:96px;object-fit:cover;border-radius:6px;border:2px solid #00e5ff}
+  table{border-collapse:collapse;font-size:11px;margin-top:10px;width:96vw;max-width:640px}
+  th,td{border:1px solid #333;padding:3px 5px;text-align:center}
+  th{background:#1a1a2e;color:#00e5ff}
 </style>
 </head>
 <body>
 
-<!-- ================= GATE ================= -->
-<div id="gate" class="center">
-  <div class="card">
-    <h2>🏹 سایلنت اروو</h2>
-    <p style="color:var(--dim);font-size:13px;">آنالیز بیومکانیک تیراندازی با کمان</p>
-    <label class="fld">برای ورود، رمز عبور را وارد کنید</label>
-    <input type="password" id="pw" placeholder="••••••••" autocomplete="current-password">
-    <div class="err" id="gateErr"></div>
-    <button class="btn" style="width:100%" onclick="tryLogin()">ورود</button>
-  </div>
+<h2>🏹 سایلنت اررو | آنالیز بیومکانیک تیراندازی با کمان</h2>
+<div id="status">برای شروع، دکمه «ورود / روشن کردن دوربین» را بزنید (فعال‌سازی صدا و دوربین).</div>
+<div id="shotIndicator"></div>
+
+<div class="camera-container">
+  <video id="webcam" autoplay playsinline muted></video>
+  <canvas id="output_canvas"></canvas>
+  <div id="flash"></div>
+  <div id="countdown"></div>
 </div>
 
-<!-- ================= APP ================= -->
-<div id="app" class="wrap" style="display:none">
-  <h2 style="text-align:center">پروژه سایلنت اروو | آنالیز بیومکانیک</h2>
+<div class="controls">
+  <button id="btnStart">🔐 ورود / روشن کردن دوربین</button>
+  <button id="btnSession" disabled>🎯 شروع جلسه (۶ تیر)</button>
+  <button id="btnSnap" disabled>📸 عکس فوری</button>
+  <button id="btnExcel" disabled>📊 دانلود گزارش اکسل</button>
+  <button id="btnHistory" style="background:#6a1b9a">🗂 تاریخچه جلسات</button>
+</div>
 
-  <div class="cam-box">
-    <button id="camFlip" onclick="switchCamera()" title="تغییر دوربین">🔄</button>
-    <div id="recBadge">● ضبط جلسه</div>
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="cv"></canvas>
-    <div id="shotFlash"></div>
-    <div class="overlay-hud">
-      <div class="pill">آرنج کمان: <b id="hBow">--</b></div>
-      <div class="pill">آرنج کشش: <b id="hDraw">--</b></div>
-      <div class="pill">هم‌ترازی شانه: <b id="hSh">--</b></div>
-      <div class="pill">ثبات سر: <b id="hHead">--</b></div>
+<div id="previews"></div>
+<div id="tableWrap"></div>
+
+
+<!-- ================= تاریخچه جلسات (History Modal) ================= -->
+<div id="historyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;align-items:center;justify-content:center;padding:12px">
+  <div style="background:#161622;border-radius:14px;padding:16px;width:96vw;max-width:640px;max-height:85vh;overflow:auto">
+    <h3 style="margin:0 0 10px;color:#00e5ff;font-size:16px">🗂 تاریخچه جلسات</h3>
+    <div id="historyList"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button id="btnHistClose" style="background:#455a64;flex:1">بستن</button>
+      <button id="btnHistClear" style="background:#c62828;flex:1">🗑 پاک کردن تاریخچه</button>
     </div>
-  </div>
-
-  <div class="controls">
-    <button class="btn full" id="startBtn" onclick="startCamera()">روشن کردن دوربین</button>
-    <button class="btn blue" id="sessBtn" onclick="toggleSession()" disabled>شروع جلسه (۶ تیر)</button>
-    <button class="btn secondary" onclick="calibrate()" id="calBtn" disabled>کالیبره فرم من</button>
-    <button class="btn secondary full" onclick="resetCalibration()">پاک کردن کالیبراسیون</button>
-  </div>
-  <div class="big-timer" id="timer"></div>
-  <div class="status" id="status"></div>
-
-  <div class="card">
-    <h3 style="font-size:14px">⚙️ تنظیمات جلسه خودکار</h3>
-    <div class="grid2">
-      <div><label class="fld">تاخیر اولیه (ثانیه)</label><input type="number" id="cfgDelay" value="5" min="1" max="60"></div>
-      <div><label class="fld">فاصله بین تیرها (ثانیه)</label><input type="number" id="cfgInterval" value="10" min="3" max="120"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3 style="font-size:14px">📐 اندازه‌گیری زنده</h3>
-    <div class="grid2">
-      <div class="metric"><div class="lbl">زاویه آرنج بازوی کمان</div><div class="val" id="mBow">--</div></div>
-      <div class="metric"><div class="lbl">زاویه آرنج بازوی کشش</div><div class="val" id="mDraw">--</div></div>
-      <div class="metric"><div class="lbl">هم‌ترازی شانه‌ها</div><div class="val" id="mSh">--</div></div>
-      <div class="metric"><div class="lbl">شیب / ثبات سر</div><div class="val" id="mHead">--</div></div>
-    </div>
-    <div class="status" id="calInfo"></div>
-  </div>
-
-  <div class="card">
-    <h3 style="font-size:14px">⚠️ خطاها و تمرین‌های پیشنهادی</h3>
-    <ul class="alerts" id="alerts"><li style="background:none;border:none;color:var(--dim)">هنوز داده‌ای وجود ندارد.</li></ul>
-  </div>
-
-  <div class="card">
-    <h3 style="font-size:14px">📊 نتایج تیرها</h3>
-    <div style="overflow-x:auto"><table id="tbl">
-      <thead><tr><th>تیر</th><th>آرنج کمان</th><th>آرنج کشش</th><th>شانه</th><th>سر</th><th>انحراف از کالیبره</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
   </div>
 </div>
 
 <script>
 "use strict";
-/* ================= SHA-256 Gate ================= */
-const PASS_HASH = "5f64f5aa23cc4318a925608861b31455e409bee91daafde093c538897dae9241";
-async function sha256(msg){
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
-  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-async function tryLogin(){
-  const h = await sha256(document.getElementById("pw").value.trim());
-  if(h === PASS_HASH){
-    sessionStorage.setItem("sa_auth","1");
-    document.getElementById("gate").style.display="none";
-    document.getElementById("app").style.display="block";
-    loadCalibration();
-  }else{
-    document.getElementById("gateErr").textContent = "رمز عبور اشتباه است.";
-  }
-}
-document.getElementById("pw").addEventListener("keydown",e=>{if(e.key==="Enter")tryLogin();});
-if(sessionStorage.getItem("sa_auth")==="1"){
-  document.getElementById("gate").style.display="none";
-  document.getElementById("app").style.display="block";
-  loadCalibration();
-}
+/* ================= ELEMENTS ================= */
+const video = document.getElementById('webcam');
+const canvas = document.getElementById('output_canvas');
+const ctx = canvas.getContext('2d');
+const flash = document.getElementById('flash');
+const countdownEl = document.getElementById('countdown');
+const shotIndicator = document.getElementById('shotIndicator');
+const statusEl = document.getElementById('status');
+const previews = document.getElementById('previews');
+const btnStart = document.getElementById('btnStart');
+const btnSession = document.getElementById('btnSession');
+const btnSnap = document.getElementById('btnSnap');
+const btnExcel = document.getElementById('btnExcel');
+const btnHistory = document.getElementById('btnHistory');
 
-/* ================= Helpers ================= */
-const $ = id => document.getElementById(id);
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-function deg(p1,p2,p3){ // angle at p2
-  const a1=Math.atan2(p1.y-p2.y,p1.x-p2.x), a2=Math.atan2(p3.y-p2.y,p3.x-p2.x);
-  let d=Math.abs(a1-a2)*180/Math.PI; return d>180?360-d:d;
-}
-function lerp(a,b,t){return a+(b-a)*t;}
+/* ================= STATE ================= */
+let pose = null, cameraLoop = null, latestResults = null, running = false;
+let sessionActive = false, currentShot = 0, TOTAL_SHOTS = 6;
+let shotData = [], calibrated = null;
 
-/* ================= Web Audio ================= */
-let actx=null;
-function audio(){ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended")actx.resume(); return actx; }
-function beep(freq=880,dur=0.12,vol=0.25,type="sine"){
+/* ================= localStorage: کالیبراسیون و تاریخچه ================= */
+const CAL_KEY = 'silent_arrows_calibration';
+const HIST_KEY = 'silent_arrows_history';
+
+function saveCalibration(cal){
   try{
-    const a=audio(), o=a.createOscillator(), g=a.createGain();
-    o.type=type; o.frequency.value=freq; o.connect(g); g.connect(a.destination);
-    g.gain.setValueAtTime(vol,a.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+dur);
-    o.start(); o.stop(a.currentTime+dur);
+    if(!cal) return;
+    const data = {elbowBow: cal.elbowBow, elbowDraw: cal.elbowDraw, shoulderTilt: cal.shoulderTilt, headTilt: cal.headTilt, ts: Date.now()};
+    localStorage.setItem(CAL_KEY, JSON.stringify(data));
+    statusEl.textContent = '💾 کالیبراسیون ذخیره شد — دفعه بعد نیاز به کالیبره مجدد نیست.';
   }catch(e){}
 }
-function shotSound(){ beep(1500,0.09,0.3,"square"); setTimeout(()=>beep(1000,0.15,0.3,"square"),110); }
-
-/* ================= Camera ================= */
-const video=$("video"), canvas=$("cv"), ctx=canvas.getContext("2d");
-let facing="user", stream=null, camera=null, pose=null, running=false, mirrored=true;
-canvas.style.setProperty("--mirror",1);
-
-async function startStream(){
-  stopStream();
-  stream = await navigator.mediaDevices.getUserMedia({
-    video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}}, audio:false
-  });
-  video.srcObject=stream;
-  await new Promise(r=>{ video.onloadedmetadata=()=>{video.play(); r();}; });
-  canvas.width=video.videoWidth||640; canvas.height=video.videoHeight||480;
-  mirrored = facing==="user";
-  canvas.style.setProperty("--mirror", mirrored?1:0);
-}
-function stopStream(){
-  if(stream){stream.getTracks().forEach(t=>t.stop()); stream=null;}
-}
-async function startCamera(){
+function loadCalibration(){
   try{
-    $("status").textContent="در حال بارگذاری مدل...";
-    await startStream();
-    if(!pose){
-      pose = new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
-      pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
-      pose.onResults(onResults);
-    }
-    if(!camera){
-      camera = new Camera(video,{
-        onFrame:async()=>{ if(running) await pose.send({image:video}); },
-        width:1280,height:720
-      });
-      // we manage our own loop to support switching:
-    }
-    running=true;
-    loop();
-    $("startBtn").style.display="none";
-    $("sessBtn").disabled=false; $("calBtn").disabled=false;
-    $("status").textContent="دوربین فعال است. مدل در حال ردیابی...";
-  }catch(err){ $("status").textContent="خطا در دسترسی به دوربین: "+err.message; }
+    const raw = localStorage.getItem(CAL_KEY);
+    if(!raw) return null;
+    const c = JSON.parse(raw);
+    if(typeof c.elbowBow !== 'number') return null;
+    return c;
+  }catch(e){ return null; }
 }
-async function switchCamera(){
-  facing = facing==="user" ? "environment" : "user";
+function loadHistory(){
+  try{ return JSON.parse(localStorage.getItem(HIST_KEY) || '[]') || []; }
+  catch(e){ return []; }
+}
+function saveHistoryEntry(entry){
   try{
-    await startStream();
-    $("status").textContent = facing==="user" ? "دوربین جلو" : "دوربین عقب";
-  }catch(e){ $("status").textContent="تعویض دوربین ممکن نشد: "+e.message; }
+    const h = loadHistory();
+    h.unshift(entry);            // جدیدترین اول
+    while(h.length > 50) h.pop(); // محدودیت حجم
+    localStorage.setItem(HIST_KEY, JSON.stringify(h));
+  }catch(e){}
 }
-function loop(){
-  if(!running) return;
-  if(video.readyState>=2) pose.send({image:video});
-  requestAnimationFrame(loop);
+function renderHistory(){
+  const h = loadHistory();
+  const list = document.getElementById('historyList');
+  if(!h.length){ list.innerHTML = '<p style="color:#999;font-size:13px">هنوز جلسه‌ای ثبت نشده است.</p>'; return; }
+  list.innerHTML = h.map((s,i)=>`
+    <div style="border:1px solid #333;border-radius:10px;padding:8px;margin-bottom:8px;font-size:12px">
+      <b style="color:#ffd54f">جلسه ${fa(h.length-i)}</b> — ${s.date}
+      <div style="margin-top:4px">تیرها: ${s.shotsSummary}</div>
+      <div>میانگین انحراف از کالیبراسیون: <b style="color:#00e5ff">${s.avgDev}</b></div>
+      <button onclick="reloadSession(${i})" style="background:#2962ff;padding:6px 10px;font-size:12px;margin-top:6px">📥 بازیابی این جلسه</button>
+    </div>`).join('');
+}
+function reloadSession(idx){
+  const h = loadHistory();
+  const s = h[idx];
+  if(!s) return;
+  if(s.calibration) calibrated = {...s.calibration};
+  shotData = s.shots ? JSON.parse(JSON.stringify(s.shots)) : [];
+  previews.innerHTML='';
+  renderTable();
+  document.getElementById('historyModal').style.display='none';
+  statusEl.textContent = '📥 جلسه بازیابی شد — گزارش اکسل را می‌توانید دانلود کنید.';
+  btnExcel.disabled = false;
+}
+window.reloadSession = reloadSession; // برای onclick درون مودال
+
+const POSE_CONNECTIONS = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32],[15,17],[16,18],[15,19],[16,20],[0,11],[0,12]];
+
+/* ================= 2. AUDIO (Web Audio API, unlocked by gesture) ================= */
+let audioCtx = null;
+function initAudio(){
+  if(!audioCtx){
+    try{
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }catch(e){ return; }
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+}
+function beep(freq, dur, type='sine', vol=0.4, when=0){
+  if(!audioCtx) return;
+  const t = audioCtx.currentTime + when;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function soundTick(){ beep(880, 0.12, 'sine', 0.4); }                       // شمارش معکوس
+function soundShot(){                                                        // صدای شلیک
+  if(!audioCtx) return;
+  beep(140, 0.25, 'square', 0.5);      // thwack
+  beep(60, 0.3, 'sawtooth', 0.35, 0.02);
+  beep(1200, 0.08, 'sine', 0.3, 0.05); // بوق تیز
+  // نویز کوتاه رها شدن زه
+  const len = audioCtx.sampleRate * 0.15;
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i] = (Math.random()*2-1) * (1 - i/len);
+  const src = audioCtx.createBufferSource(); src.buffer = buf;
+  const g = audioCtx.createGain(); g.gain.value = 0.35;
+  const f = audioCtx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=1800;
+  src.connect(f); f.connect(g); g.connect(audioCtx.destination); src.start();
+}
+function soundFanfare(){ [523,659,784,1047].forEach((f,i)=>beep(f,0.35,'sine',0.4,i*0.18)); }
+
+/* ================= 1. MEDIAPIPE POSE ================= */
+function buildPose(){
+  if(pose) return;
+  pose = new Pose({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+  pose.setOptions({modelComplexity:0, smoothLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5});
+  pose.onResults(onResults);
 }
 
-/* ================= Biomechanics ================= */
-// indices: 11 Lsh 12 Rsh 13 Lel 14 Rel 15 Lwr 16 Rwr 7 Lear 8 Rear 0 nose 9/10 mouth
-let live={bow:null,draw:null,sh:null,head:null,lm:null};
-let smooth={bow:150,draw:150,sh:0,head:0};
-let calibration=null; // stored baseline
-let shots=[], sessionOn=false, timers=[];
-
-function computeAngles(lm){
-  const g=i=>({x:lm[i].x,y:lm[i].y});
-  const bowArm   = deg(g(11),g(13),g(15));   // left elbow (bow arm for right-handed)
-  const drawArm  = deg(g(12),g(14),g(16));   // right elbow
-  const sh       = Math.abs(Math.atan2(lm[12].y-lm[11].y, lm[12].x-lm[11].x)*180/Math.PI);
-  const head     = Math.abs(Math.atan2(lm[8].y-lm[7].y, lm[8].x-lm[7].x)*180/Math.PI); // ear line tilt
-  return {bow:bowArm, draw:drawArm, sh, head};
+function angle(a,b,c){ // زاویه در رأس b (درجه)
+  const v1=[a.x-b.x,a.y-b.y], v2=[c.x-b.x,c.y-b.y];
+  const dot=v1[0]*v2[0]+v1[1]*v2[1];
+  const m=Math.hypot(...v1)*Math.hypot(...v2);
+  return m ? Math.acos(Math.max(-1,Math.min(1,dot/m)))*180/Math.PI : 0;
 }
+
 function onResults(res){
+  latestResults = res;
+  const W = video.videoWidth || 640, H = video.videoHeight || 480;
+  if(canvas.width!==W || canvas.height!==H){ canvas.width=W; canvas.height=H; }
   ctx.save();
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(res.poseLandmarks){
-    const lm=res.poseLandmarks;
-    // draw skeleton
-    const conns=window.POSE_CONNECTIONS||[];
-    ctx.strokeStyle="rgba(0,229,160,.9)"; ctx.lineWidth=3;
-    conns.forEach(c=>{ const a=lm[c[0]],b=lm[c[1]];
-      if(a.visibility>0.5&&b.visibility>0.5){ctx.beginPath();ctx.moveTo(a.x*canvas.width,a.y*canvas.height);ctx.lineTo(b.x*canvas.width,b.y*canvas.height);ctx.stroke();}});
-    const a=computeAngles(lm);
-    smooth.bow=lerp(smooth.bow,a.bow,0.4);
-    smooth.draw=lerp(smooth.draw,a.draw,0.4);
-    smooth.sh=lerp(smooth.sh,a.sh,0.4);
-    smooth.head=lerp(smooth.head,a.head,0.4);
-    live={bow:smooth.bow,draw:smooth.draw,sh:smooth.sh,head:smooth.head,lm};
-    // guide lines (screenshot style)
-    ctx.strokeStyle="rgba(0,255,100,.7)"; ctx.lineWidth=2; ctx.setLineDash([6,6]);
-    ctx.beginPath(); ctx.moveTo(lm[11].x*canvas.width,0); ctx.lineTo(lm[11].x*canvas.width,canvas.height); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(lm[12].x*canvas.width,0); ctx.lineTo(lm[12].x*canvas.width,canvas.height); ctx.stroke();
-    const eyeY=lm[7].y*canvas.height;
-    ctx.beginPath(); ctx.moveTo(0,eyeY); ctx.lineTo(canvas.width,eyeY); ctx.stroke();
-    ctx.setLineDash([]);
-    updateHUD();
-  }
+  ctx.clearRect(0,0,W,H);
+  // آینه‌ای کردن تصویر
+  ctx.translate(W,0); ctx.scale(-1,1);
+  if(res.image) ctx.drawImage(res.image,0,0,W,H);
   ctx.restore();
-}
-function fmt(v,dec=1){return v==null?"--":v.toFixed(dec);}
-function updateHUD(){
-  $("hBow").textContent=fmt(live.bow,0)+"°";   $("mBow").textContent=fmt(live.bow);
-  $("hDraw").textContent=fmt(live.draw,0)+"°"; $("mDraw").textContent=fmt(live.draw);
-  $("hSh").textContent=fmt(live.sh,0)+"°";     $("mSh").textContent=fmt(live.sh);
-  $("hHead").textContent=fmt(live.head,0)+"°"; $("mHead").textContent=fmt(live.head);
-  detectErrors();
-}
 
-/* ================= Calibration ================= */
-const CAL_KEY="sa_calibration_v1";
-function loadCalibration(){ calibration=JSON.parse(localStorage.getItem(CAL_KEY)||"null"); showCal(); }
-function showCal(){
-  $("calInfo").textContent = calibration
-    ? `کالیبره ذخیره‌شده — آرنج کمان: ${calibration.bow.toFixed(1)}° | کشش: ${calibration.draw.toFixed(1)}° | شانه: ${calibration.sh.toFixed(1)}° | سر: ${calibration.head.toFixed(1)}°`
-    : "کالیبراسیونی ذخیره نشده. روی دکمه «کالیبره فرم من» بزنید.";
-}
-async function calibrate(){
-  if(live.lm==null){$("status").textContent="دوربین/مدل آماده نیست.";return;}
-  // average over ~1.5s
-  $("status").textContent="کالیبراسیون... فرم خود را ثابت نگه دارید (۱.۵ ثانیه)";
-  const samples=[];
-  for(let i=0;i<15;i++){ samples.push({...live}); await new Promise(r=>setTimeout(r,100)); }
-  const avg=k=>samples.reduce((s,x)=>s+(x[k]??0),0)/samples.length;
-  calibration={bow:avg("bow"),draw:avg("draw"),sh:avg("sh"),head:avg("head"),t:Date.now()};
-  localStorage.setItem(CAL_KEY,JSON.stringify(calibration));
-  showCal(); $("status").textContent="کالیبراسیون ذخیره شد ✅"; beep(1200,.2);
-}
-function resetCalibration(){ localStorage.removeItem(CAL_KEY); calibration=null; showCal(); }
+  const lm = res.poseLandmarks;
+  if(!lm) return;
+  const P = i => ({x: W - lm[i].x*W, y: lm[i].y*H}); // مختصات آینه‌ای
+  const NEON='#39ff14', PINK='#ff2bd6', CYAN='#00e5ff', YEL='#ffe600';
 
-/* ================= Error detection ================= */
-function detectErrors(){
-  const out=[];
-  if(live.lm==null){ renderAlerts(out); return; }
-  const base = calibration;
-  const d = base ? {bow:live.bow-base.bow, draw:live.draw-base.draw, sh:live.sh-base.sh, head:live.head-base.head} : null;
+  // استخوان‌ها
+  ctx.lineWidth = 4; ctx.strokeStyle = NEON;
+  ctx.shadowColor = NEON; ctx.shadowBlur = 10;
+  POSE_CONNECTIONS.forEach(([a,b])=>{
+    ctx.beginPath(); ctx.moveTo(P(a).x,P(a).y); ctx.lineTo(P(b).x,P(b).y); ctx.stroke();
+  });
+  // مفاصل
+  [0,11,12,13,14,15,16,23,24].forEach(i=>{
+    ctx.beginPath(); ctx.fillStyle=PINK; ctx.arc(P(i).x,P(i).y,6,0,7); ctx.fill();
+  });
+  ctx.shadowBlur = 0;
 
-  if(d){
-    if(d.head > 6) out.push(["خزش سر به عقب/بالا (Head Creep)!","سر را روی ستون فقرات ثابت نگه دارید و فقط کمان را رها کنید."]);
-    else if(d.head < -6) out.push(["افت سر به جلو!","چانه را کمی بالا بیاورید و نقطه نشانه‌روی را ثابت نگاه کنید."]);
-    if(d.sh > 6) out.push(["بالا پریدن شانه (High Shoulder)!","شانه‌ی بازوی کشش را پایین و شل نگه دارید."]);
-    if(d.draw < -12) out.push(["ریزش آرنج کشش (Elbow Collapse)!","آرنج کشش را هم‌سطح یا بالاتر از خط شانه نگه دارید."]);
-  }else{
-    if(live.sh > 10) out.push(["خطای شانه: خط شانه‌ها بیش از حد کج است.","بدن را عمود بر زمین قرار دهید."]);
-    if(live.head > 8) out.push(["کجی سر زیاد است.","سر را صاف و عمود نگه دارید."]);
-  }
-  if(live.bow < 155) out.push(["بازوی کمان بیش از حد خم شده است (Elbow < 155°).","بازوی کمان را تقریباً صاف ولی قفل‌نشده نگه دارید."]);
-  renderAlerts(out, !!d);
-}
-function renderAlerts(list,cal){
-  const ul=$("alerts");
-  if(!list.length){ ul.innerHTML=`<li style="background:rgba(0,229,160,.08);border-color:rgba(0,229,160,.3);color:#a9ffd9">✅ فرم در محدوده خوب است.</li>`; return; }
-  ul.innerHTML = list.map(([e,drill])=>
-    `<li>⚠️ ${e}</li><li class="drill">🏋️ تمرین: ${drill}</li>`).join("");
-}
+  // زوایا
+  const lSh=P(11), rSh=P(12), lEl=P(13), rEl=P(15>13?15:15), lWr=P(15), rWr=P(16), head=P(0);
+  const elbowAngle = angle(lSh, lEl, lWr);
+  const shoulderTilt = Math.atan2(rSh.y-lSh.y, rSh.x-lSh.x)*180/Math.PI;
+  const headTilt = Math.atan2(rSh.y-head.y, rSh.x-head.x)*180/Math.PI - 90;
+  drawLabel(P(13).x, P(13).y, `آرنج: ${elbowAngle.toFixed(0)}°`, YEL);
+  drawLabel(lSh.x, lSh.y-18, `شیب شانه: ${shoulderTilt.toFixed(0)}°`, CYAN);
+  drawLabel(head.x, Math.max(20,head.y-50), `شیب سر: ${headTilt.toFixed(0)}°`, CYAN);
 
-/* ================= Auto Session ================= */
-function toggleSession(){
-  if(sessionOn){ endSession(false); return; }
-  sessionOn=true; shots=[];
-  $("tbl").querySelector("tbody").innerHTML="";
-  $("recBadge").style.display="block";
-  $("sessBtn").textContent="لغو جلسه"; $("sessBtn").classList.add("danger");
-  audio();
-  const delay=clamp(+$("cfgDelay").value||5,1,60), interval=clamp(+$("cfgInterval").value||10,3,120);
-  let t=-delay; // negative = countdown before first shot
-  const tick=()=>{
-    if(!sessionOn) return;
-    if(t<=0){
-      const n=Math.ceil(-t);
-      if(t%1===0 && n>0 && Number.isInteger(t)) beep(700,.1,.2);
-      $("timer").textContent = n>0 ? `شروع در ${n}...` : "";
-    }
-    t++;
-    if(t>0 && (t)%interval===0) takeShot();
-    if(shots.length>=6){ finishSession(); return; }
-    timers.push(setTimeout(tick,1000));
+  // وضعیت انکر (مبدا بر اساس مچ دست کشیدن نزدیک صورت)
+  const anchorDist = Math.hypot(P(15).x-head.x, P(15).y-head.y) / W;
+  const anchorState = anchorDist < 0.15 ? 'انکر ✅' : (anchorDist<0.3 ? 'نزدیک انکر' : 'خارج از انکر');
+
+  if(btnSnap.disabled){ btnSnap.disabled = false; } // اولین نتیجه pose رسید — عکس فوری فعال شد
+  window.lastMetrics = {
+    elbowBow: angle(lSh, P(13), lWr),            // آرنج دست کمان
+    elbowDraw: angle(rSh, P(14), rWr),           // آرنج دست کشش
+    shoulderTilt: shoulderTilt,
+    headTilt: headTilt,
+    anchor: anchorState,
+    anchorDist: anchorDist
   };
-  tick();
 }
-function takeShot(){
-  if(live.lm==null) return;
-  const rec={bow:live.bow,draw:live.draw,sh:live.sh,head:live.head,lm:live.lm};
-  shots.push(rec);
-  shotSound(); flash();
-  $("timer").textContent=`تیر ${shots.length} ثبت شد ✓`;
-  addRow(shots.length,rec);
-  detectErrors();
+
+function drawLabel(x,y,txt,color){
+  ctx.font = 'bold 18px Tahoma';
+  const w = ctx.measureText(txt).width + 10;
+  ctx.fillStyle='rgba(0,0,0,0.65)';
+  ctx.fillRect(x-w/2, y-20, w, 24);
+  ctx.fillStyle=color; ctx.textAlign='center';
+  ctx.fillText(txt, x, y-3);
 }
-function addRow(n,rec){
-  let dev="--";
-  if(calibration){ dev=((Math.abs(rec.bow-calibration.bow)+Math.abs(rec.draw-calibration.draw)+Math.abs(rec.sh-calibration.sh)+Math.abs(rec.head-calibration.head))/4).toFixed(1)+"°"; }
-  const tr=document.createElement("tr");
-  tr.innerHTML=`<td>${n}</td><td>${fmt(rec.bow)}</td><td>${fmt(rec.draw)}</td><td>${fmt(rec.sh)}</td><td>${fmt(rec.head)}</td><td>${dev}</td>`;
-  $("tbl").querySelector("tbody").appendChild(tr);
+
+/* حلقه دوربین: Camera رسمی + fallback به requestAnimationFrame */
+async function startCameraLoop(){
+  buildPose();
+  if(typeof Camera !== 'undefined'){
+    cameraLoop = new Camera(video, {
+      onFrame: async () => { await pose.send({image: video}); },
+      width: 640, height: 480
+    });
+    await cameraLoop.start().catch(err => {
+      console.error('Camera start failed:', err);
+      statusEl.textContent = '⚠️ خطا در راه‌اندازی حلقه دوربین — تلاش با روش جایگزین...';
+      video.play().catch(()=>{});
+      (function raf(){
+        if(running && pose) pose.send({image: video});
+        requestAnimationFrame(raf);
+      })();
+    });
+  } else {
+    await video.play().catch(()=>{});
+    (function raf(){
+      if(running) pose.send({image: video});
+      requestAnimationFrame(raf);
+    })();
+  }
+  running = true;
 }
-function flash(){
-  const f=$("shotFlash"); f.style.opacity=.85;
-  setTimeout(()=>f.style.opacity=0,120);
+
+/* ================= شروع (.unlock همه چیز با یک کلیک) ================= */
+btnStart.addEventListener('click', async ()=>{
+  initAudio(); beep(660,0.1,'sine',0.3);           // 2: آنلاک صدا با اولین کلیک
+  btnStart.disabled = true; btnStart.textContent='⏳ در حال اتصال...';
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'user', width:{ideal:640}, height:{ideal:480}}, audio:false
+    });
+    video.srcObject = stream;
+    await video.play();
+    statusEl.textContent = 'در حال بارگذاری مدل هوش مصنوعی...';
+    await startCameraLoop();
+    statusEl.textContent = '✅ دوربین و آنالیز فعال است.';
+    btnSession.disabled=false; btnExcel.disabled=false; // btnSnap تا دریافت اولین نتیجه pose غیرفعال می‌ماند
+  }catch(err){
+    statusEl.textContent = '❌ خطا: ' + err.name + ' — دسترسی دوربین را در تنظیمات مرورگر مجاز کنید و با HTTPS باز کنید.';
+    btnStart.disabled = false; btnStart.textContent='🔄 تلاش مجدد';
+  }
+});
+
+/* ================= 3. SNAPSHOT ================= */
+function takeSnapshot(label){
+  if(!video.videoWidth) return;
+  const c = document.createElement('canvas');
+  c.width = canvas.width; c.height = canvas.height;
+  c.getContext('2d').drawImage(canvas, 0, 0);
+  const g = c.getContext('2d');
+  // کادر مشخصات
+  const txt = `${label||('تیر ' + (currentShot||'-'))} | ${new Date().toLocaleString('fa-IR')}`;
+  g.font='bold 22px Tahoma';
+  const tw = g.measureText(txt).width + 20;
+  g.fillStyle='rgba(0,0,0,0.7)'; g.fillRect(10, c.height-46, tw, 36);
+  g.fillStyle='#00e5ff'; g.textAlign='left'; g.fillText(txt, 20, c.height-21);
+  // فلش سفید صفحه
+  flash.style.opacity = 0.9;
+  setTimeout(()=>flash.style.opacity=0, 120);
+  // دانلود مستقیم به گالری/Downloads موبایل
+  const shotNo = currentShot || (shotData.length+1) || 1;
+  const a = document.createElement('a');
+  a.download = `SilentArrows_Shot_${shotNo}.png`;
+  a.href = c.toDataURL('image/png');
+  document.body.appendChild(a); a.click(); a.remove();
+  // پیش‌نمایش
+  const img = new Image(); img.src = a.href; img.style.width='72px'; img.style.height='96px';
+  previews.prepend(img);
 }
-function finishSession(){
-  endSession(false);
-  $("timer").textContent="جلسه کامل شد ✅";
-  beep(1300,.15); setTimeout(()=>beep(1600,.2),180);
-  downloadCSV();
+
+/* ================= 4. CSV / EXCEL ================= */
+function exportCSV(){
+  const header = ['شماره تیر','زمان','زاویه آرنج کمان','زاویه آرنج کشش','تراز شانه','شیب سر','وضعیت انکر','انحراف از فرم کالیبره','تمرین اصلاحی پیشنهادی (Drill)'];
+  const rows = shotData.length ? shotData : [{n:'-',t:'-',bow:'-',draw:'-',sh:'-',head:'-',an:'-',dev:'-',dr:'داده‌ای ثبت نشده'}];
+  const csv = '\uFEFF' + [header, ...rows.map(r=>[r.n,r.t,r.bow,r.draw,r.sh,r.head,r.an,r.dev,r.dr])]
+    .map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download = 'SilentArrows_Session_Report.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  statusEl.textContent = '📊 فایل CSV ذخیره شد (Excel با UTF-8 و فارسی درست باز می‌کند).';
 }
-function endSession(done){
-  sessionOn=false; timers.forEach(clearTimeout); timers=[];
-  $("recBadge").style.display="none";
-  $("sessBtn").textContent="شروع جلسه (۶ تیر)"; $("sessBtn").classList.remove("danger");
+btnExcel.addEventListener('click', exportCSV);
+
+/* ================= جلسه تیراندازی (شمارش معکوس + ۶ تیر) ================= */
+function countdown(sec, text){
+  return new Promise(res=>{
+    countdownEl.textContent = text ?? (sec<=0 ? '📸' : fa(sec));
+    if(sec>0) soundTick();
+    setTimeout(()=>{countdownEl.textContent='';res();}, sec<=0 ? 500 : 1000);
+  });
+}
+
+async function shootOne(){
+  shotIndicator.textContent = `تیر ${fa(currentShot)} از ${fa(TOTAL_SHOTS)}`;
+  await countdown(3); await countdown(2); await countdown(1); await countdown(0,'📸');
+  soundShot();
+  const m = window.lastMetrics || {elbowBow:0,elbowDraw:0,shoulderTilt:0,headTilt:0,anchor:'-',anchorDist:1};
+  const dev = calibrated ? (Math.abs(m.shoulderTilt - calibrated.shoulderTilt) + Math.abs(m.headTilt - calibrated.headTilt) + Math.abs(m.elbowBow - calibrated.elbowBow) + Math.abs(m.elbowDraw - calibrated.elbowDraw)).toFixed(1)+'°' : '—';
+  const drill = (m.anchorDist < 0.15)
+    ? 'حفظ فرم — انکر خوب'
+    : 'تمرین آینه: نگه داشتن انکر ۵ ثانیه و کشش آرنج در راستای خط شانه';
+  shotData.push({n:currentShot, t:new Date().toLocaleTimeString('fa-IR'), bow:(m.elbowBow??0).toFixed(1), draw:(m.elbowDraw??0).toFixed(1), sh:(m.shoulderTilt??0).toFixed(1), head:(m.headTilt??0).toFixed(1), an:m.anchor, dev, dr:drill});
+  takeSnapshot(`تیر ${fa(currentShot)}`);
+  renderTable();
+}
+
+
+/* بارگذاری کالیبراسیون ذخیره‌شده هنگام شروع */
+(function(){
+  const saved = loadCalibration();
+  if(saved){
+    calibrated = {...saved};
+    statusEl.textContent = '💾 کالیبراسیون قبلی بارگذاری شد — آماده تمرین.';
+  }
+})();
+
+const fa = n => String(n).replace(/\d/g, d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+
+btnSession.addEventListener('click', async ()=>{
+  initAudio();
+  if(sessionActive) return;
+  sessionActive = true; btnSession.disabled = true;
+  shotData = []; currentShot = 0; previews.innerHTML='';
+  // کالیبراسیون با فرمت فعلی
+  statusEl.textContent = 'در فرم صحیح بایستید... کالیبراسیون فرم';
+  await countdown(3); await countdown(2); await countdown(1);
+  calibrated = window.lastMetrics ? {...window.lastMetrics} : null;
+  statusEl.textContent = calibrated ? 'کالیبره شد ✅' : 'کالیبراسیون ناموفق — ادامه بدون مبدا';
+  for(let i=1;i<=TOTAL_SHOTS;i++){ currentShot = i; await shootOne(); await new Promise(r=>setTimeout(r,1500)); }
+  soundFanfare();
+  shotIndicator.textContent = 'جلسه تمام شد 🏁';
+  saveCalibration(calibrated);
+  // ذخیره خلاصه جلسه در تاریخچه
+  const devs = shotData.map(r=>parseFloat(String(r.dev).replace('°',''))).filter(v=>!isNaN(v));
+  const avgDev = devs.length ? (devs.reduce((a,b)=>a+b,0)/devs.length).toFixed(1)+'°' : '—';
+  const summary = shotData.map(r=>`تیر${r.n}: کشش ${r.draw}° / شانه ${r.sh}°`).join(' | ');
+  saveHistoryEntry({date: new Date().toLocaleString('fa-IR'), shotsSummary: summary, avgDev, shots: JSON.parse(JSON.stringify(shotData)), calibration: calibrated ? {...calibrated} : null});
+  exportCSV();   // دانلود خودکار گزارش بعد از تیر ۶
+  sessionActive = false; btnSession.disabled = false;
+});
+
+btnSnap.addEventListener('click', ()=>{ initAudio(); takeSnapshot('عکس فوری'); });
+
+
+/* ================= مدیریت مودال تاریخچه ================= */
+btnHistory.addEventListener('click', ()=>{ renderHistory(); document.getElementById('historyModal').style.display='flex'; });
+document.getElementById('btnHistClose').addEventListener('click', ()=>{ document.getElementById('historyModal').style.display='none'; });
+document.getElementById('btnHistClear').addEventListener('click', ()=>{
+  if(confirm('همه تاریخچه جلسات پاک شود؟')){
+    localStorage.removeItem(HIST_KEY);
+    renderHistory();
+    statusEl.textContent = '🗑 تاریخچه پاک شد.';
+  }
+});
+
+function renderTable(){
+  const head = ['تیر','آرنج کشش','شیب شانه','شیب سر','انکر','انحراف','Drill'];
+  document.getElementById('tableWrap').innerHTML =
+    '<table><tr>'+head.map(h=>`<th>${h}</th>`).join('')+'</tr>'+
+    shotData.map(r=>`<tr><td>${r.n}</td><td>${r.draw}</td><td>${r.sh}</td><td>${r.head}</td><td>${r.an}</td><td>${r.dev}</td><td>${r.dr}</td></tr>`).join('')+'</table>';
 }
 </script>
 </body>
