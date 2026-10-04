@@ -3,12 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Silent Arrows Analyzer | آنالیز بیومکانیک ریکرو</title>
+    <title>Silent Arrows | آنالیز هوشمند ریکرو</title>
+    
+    <!-- کتابخانه‌های پردازش هوش مصنوعی گوگل (MediaPipe Pose) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
     <style>
         * { box-sizing: border-box; }
         body {
             margin: 0;
-            padding: 12px;
+            padding: 10px;
             background-color: #0d1117;
             color: #e6edf3;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Tahoma, sans-serif;
@@ -18,7 +25,7 @@
             min-height: 100vh;
         }
 
-        /* لایه قفل اختصاصی */
+        /* صفحه قفل اختصاصی */
         #authOverlay {
             position: fixed;
             top: 0; left: 0;
@@ -41,7 +48,7 @@
             text-align: center;
             box-shadow: 0 8px 24px rgba(0,0,0,0.5);
         }
-        .auth-card h3 { margin: 0 0 16px; color: #00e676; font-size: 1.15rem; }
+        .auth-card h3 { margin: 0 0 12px; color: #00e676; font-size: 1.15rem; }
         .auth-input {
             width: 100%;
             padding: 12px;
@@ -52,9 +59,8 @@
             font-size: 16px;
             text-align: center;
             outline: none;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
         }
-        .auth-input:focus { border-color: #00e676; }
         .auth-btn {
             width: 100%;
             padding: 12px;
@@ -65,32 +71,67 @@
             font-weight: bold;
             font-size: 15px;
             cursor: pointer;
-            transition: 0.2s;
         }
-        .auth-btn:active { background: #009624; }
-        #authError { color: #ff5252; margin-top: 10px; font-size: 13px; font-weight: 500; }
+        #authError { color: #ff5252; margin-top: 10px; font-size: 13px; }
 
-        /* استایل اپلیکیشن */
-        h2 { margin: 10px 0 14px; font-size: 1.2rem; color: #58a6ff; }
+        /* استایل مانیتورینگ */
+        h2 { margin: 8px 0 10px; font-size: 1.1rem; color: #58a6ff; text-align: center; }
+        
         .camera-container {
             position: relative;
-            width: 95vw;
+            width: 96vw;
             max-width: 640px;
             aspect-ratio: 4/3;
             background: #000;
             border-radius: 12px;
             overflow: hidden;
-            border: 1px solid #30363d;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            border: 2px solid #30363d;
         }
-        video, canvas {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+        video {
+            display: none; /* ویدیو در پس‌زمینه رندر می‌شود */
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
         }
+
+        #loadingStatus {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.75);
+            padding: 10px 18px;
+            border-radius: 8px;
+            color: #00e676;
+            font-size: 13px;
+            display: none;
+            pointer-events: none;
+        }
+
+        .dashboard {
+            width: 96vw;
+            max-width: 640px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .metric-box {
+            background: #0d1117;
+            padding: 8px;
+            border-radius: 6px;
+            border-right: 3px solid #00c853;
+        }
+        .metric-val { font-weight: bold; color: #00e676; }
+
         .controls {
-            margin-top: 16px;
+            margin-top: 10px;
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
@@ -100,57 +141,62 @@
             background-color: #00c853;
             color: #fff;
             border: none;
-            padding: 11px 20px;
+            padding: 10px 18px;
             font-size: 14px;
             font-weight: bold;
             border-radius: 8px;
             cursor: pointer;
         }
-        .btn-alt { background-color: #2196f3; }
-        .btn:active { opacity: 0.85; }
+        .btn-blue { background-color: #2196f3; }
     </style>
 </head>
 <body>
 
-    <!-- صفحه قفل امنیتی -->
+    <!-- صفحه ورود -->
     <div id="authOverlay">
         <div class="auth-card">
             <h3>🏹 Silent Arrows</h3>
-            <p style="font-size: 12px; color: #8b949e; margin-bottom: 16px;">ورود اختصاصی ورزشکار</p>
+            <p style="font-size: 12px; color: #8b949e; margin-bottom: 14px;">احراز هویت اختصاصی</p>
             <input type="password" id="passInput" class="auth-input" placeholder="رمز عبور..." autocomplete="off">
-            <button class="auth-btn" onclick="checkAccess()">ورود به سامانه</button>
+            <button class="auth-btn" onclick="checkAccess()">ورود</button>
             <div id="authError"></div>
         </div>
     </div>
 
-    <!-- بدنه اصلی پروژه -->
-    <h2>پروژه سایلنت اررو | آنالیز بیومکانیک</h2>
+    <h2>آنالیز بیومکانیک ریکرو (Larry Wise)</h2>
+    
     <div class="camera-container">
-        <video id="webcam" autoplay playsinline muted></video>
+        <video id="webcam" playsinline></video>
         <canvas id="output_canvas"></canvas>
+        <div id="loadingStatus">در حال بارگذاری مدل هوش مصنوعی... (چند ثانیه)</div>
+    </div>
+
+    <!-- داشبورد زنده زوایا -->
+    <div class="dashboard">
+        <div class="metric-box">زاویه آرنج کشش: <span id="drawElbowVal" class="metric-val">--</span></div>
+        <div class="metric-box">زاویه دست کمان: <span id="bowArmVal" class="metric-val">--</span></div>
+        <div class="metric-box">ثبات سر: <span id="headStabilityVal" class="metric-val">--</span></div>
+        <div class="metric-box">تراز شانه: <span id="shoulderAlignVal" class="metric-val">--</span></div>
     </div>
 
     <div class="controls">
-        <button id="startBtn" class="btn" onclick="startCamera()">روشن کردن دوربین</button>
-        <button id="flipBtn" class="btn btn-alt" style="display:none;" onclick="toggleCamera()">تغییر دوربین</button>
+        <button id="startBtn" class="btn" onclick="initSystem()">روشن کردن دوربین و آنالیز</button>
+        <button id="flipBtn" class="btn btn-blue" style="display:none;" onclick="toggleCamera()">تغییر دوربین</button>
     </div>
 
     <script>
-        // هش امنیتی رمز عبور شما (SHA-256)
+        // احراز هویت با هش امن
         const SECURE_HASH = "5f64f5aa23cc4318a925608861b31455e409bee91daafde093c538897dae9241";
 
         async function sha256(str) {
             const buffer = new TextEncoder().encode(str);
             const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-            return Array.from(new Uint8Array(hashBuffer))
-                        .map(b => b.toString(16).padStart(2, '0'))
-                        .join('');
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         async function checkAccess() {
             const inputVal = document.getElementById('passInput').value;
             const inputHash = await sha256(inputVal);
-
             if (inputHash === SECURE_HASH) {
                 localStorage.setItem("sa_auth_token", "authorized_user");
                 document.getElementById('authOverlay').style.display = 'none';
@@ -159,84 +205,115 @@
             }
         }
 
-        // بررسی اینکه اگر قبلاً وارد شده‌اید، نیازی به تایپ مجدد نباشد
         window.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem("sa_auth_token") === "authorized_user") {
                 document.getElementById('authOverlay').style.display = 'none';
             }
-            // اتصال کلید Enter در فیلد رمز
             document.getElementById('passInput').addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') checkAccess();
             });
         });
 
-        // مدیریت دوربین
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('output_canvas');
-        const ctx = canvas.getContext('2d');
-        const startBtn = document.getElementById('startBtn');
-        const flipBtn = document.getElementById('flipBtn');
-        let currentFacingMode = "environment"; // شروع با دوربین پشت برای تمرین ریکرو
+        // متغیرهای هوش مصنوعی و دوربین
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const loadingStatus = document.getElementById('loadingStatus');
+        let poseDetector = null;
+        let camera = null;
+        let currentFacingMode = "user"; // پیش‌فرض سلفی برای تست آسان
 
-        async function startCamera() {
-            try {
-                if (video.srcObject) {
-                    video.srcObject.getTracks().forEach(track => track.stop());
-                }
+        // محاسبه زاویه سه مفصل
+        function calculateAngle(A, B, C) {
+            const radians = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
+            let angle = Math.abs(radians * 180.0 / Math.PI);
+            if (angle > 180.0) angle = 360 - angle;
+            return Math.round(angle);
+        }
 
-                const constraints = {
-                    video: {
-                        facingMode: currentFacingMode,
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    },
-                    audio: false
-                };
+        // پردازش فریم‌های ارسالی از MediaPipe
+        function onResults(results) {
+            loadingStatus.style.display = 'none';
 
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = stream;
-                
-                video.onloadedmetadata = () => {
-                    video.play();
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    startBtn.style.display = 'none';
-                    flipBtn.style.display = 'inline-block';
-                    drawGuideOverlay();
-                };
-            } catch (err) {
-                console.error("Camera Error:", err);
-                alert("خطا در اتصال به دوربین!\nحتماً از لینک معتبر HTTPS در GitHub Pages استفاده کنید و دسترسی مرورگر را تأیید نمایید.");
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.poseLandmarks) {
+                // رسم اسکلت کامل بدن با MediaPipe
+                drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00e676', lineWidth: 3});
+                drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#ff5252', lineWidth: 1, radius: 4});
+
+                const lm = results.poseLandmarks;
+
+                // محاسبه زوایای دست راست (معمولاً دست کشش در کمانداران راست‌دست)
+                const rightElbowAngle = calculateAngle(lm[12], lm[14], lm[16]); // شانه، آرنج، مچ راست
+                const leftElbowAngle = calculateAngle(lm[11], lm[13], lm[15]);  // شانه، آرنج، مچ چپ
+
+                // محاسبه ثبات سر (انحراف گوش‌ها نسبت به بینی)
+                const nose = lm[0];
+                const leftEar = lm[7];
+                const rightEar = lm[8];
+                const headTilt = Math.abs(Math.round((leftEar.y - rightEar.y) * 100));
+
+                // تراز شانه (افقی بودن خط دو شانه)
+                const shoulderSlope = Math.abs(Math.round((lm[11].y - lm[12].y) * 100));
+
+                // به‌روزرسانی داشبورد
+                document.getElementById('drawElbowVal').innerText = rightElbowAngle + '°';
+                document.getElementById('bowArmVal').innerText = leftElbowAngle + '°';
+                document.getElementById('headStabilityVal').innerText = (headTilt <= 3) ? 'عالی (ثابت)' : 'دارای انحراف';
+                document.getElementById('shoulderAlignVal').innerText = (shoulderSlope <= 4) ? 'تراز (Optimal)' : 'شیب‌دار';
+
+                // رسم مقادیر روی مفاصل در بوم تصویر
+                canvasCtx.fillStyle = "#ffff00";
+                canvasCtx.font = "bold 16px Arial";
+                canvasCtx.fillText(rightElbowAngle + "°", lm[14].x * canvasElement.width + 10, lm[14].y * canvasElement.height);
+                canvasCtx.fillText(leftElbowAngle + "°", lm[13].x * canvasElement.width + 10, lm[13].y * canvasElement.height);
             }
+            canvasCtx.restore();
+        }
+
+        async function initSystem() {
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('flipBtn').style.display = 'inline-block';
+            loadingStatus.style.display = 'block';
+
+            // راه‌اندازی مدل هوش مصنوعی MediaPipe Pose
+            poseDetector = new Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+
+            poseDetector.setOptions({
+                modelComplexity: 1, // حالت متعادل برای پردازش سریع در موبایل
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            poseDetector.onResults(onResults);
+
+            // اتصال دوربین
+            camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await poseDetector.send({image: videoElement});
+                },
+                width: 640,
+                height: 480,
+                facingMode: currentFacingMode
+            });
+
+            await camera.start();
+            canvasElement.width = 640;
+            canvasElement.height = 480;
         }
 
         function toggleCamera() {
             currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
-            startCamera();
-        }
-
-        function drawGuideOverlay() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const w = canvas.width;
-            const h = canvas.height;
-
-            // ترسیم خطوط تراز بیومکانیک (شانه و سر طبق لری وایز)
-            ctx.strokeStyle = "#00e676";
-            ctx.lineWidth = 3;
-            
-            // مستطیل راهنمای بالاتنه
-            ctx.strokeRect(w * 0.15, h * 0.1, w * 0.7, h * 0.8);
-            
-            // خط تراز شانه (Shoulder Line)
-            ctx.setLineDash([6, 6]);
-            ctx.strokeStyle = "#58a6ff";
-            ctx.beginPath();
-            ctx.moveTo(w * 0.1, h * 0.35);
-            ctx.lineTo(w * 0.9, h * 0.35);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            requestAnimationFrame(drawGuideOverlay);
+            if (camera) {
+                camera.stop();
+                initSystem();
+            }
         }
     </script>
 </body>
