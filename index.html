@@ -29,27 +29,11 @@
         }
         video, canvas {
             position: absolute;
-            const constraints = {
-    audio: false,
-    video: {
-        facingMode: "user", // یا "environment" برای دوربین پشت
-        width: { ideal: 1280, max: 1920 },
-        height: { ideal: 720, max: 1080 },
-        frameRate: { ideal: 60, min: 30 } // درخواست فریم‌ریت بالا برای ضبط روان
-    }
-};
-
-async function startCamera() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        const video = document.querySelector('video');
-        video.srcObject = stream;
-        video.play();
-    } catch (err) {
-        console.error("Camera error: ", err);
-    }
-}
-
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         .controls {
             margin-top: 15px;
