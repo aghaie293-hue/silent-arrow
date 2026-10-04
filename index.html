@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Silent Arrows - Trajectory & Biomechanics</title>
+    <title>Silent Arrows - Larry Wise Biomechanics & Head Stability</title>
     
     <!-- MediaPipe Pose & Camera Utils -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -24,9 +24,15 @@
             box-sizing: border-box;
         }
         h2 { 
-            margin: 4px 0 8px 0; 
+            margin: 4px 0 2px 0; 
             font-size: 15px;
             color: #00e676;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 11px;
+            color: #8b949e;
+            margin-bottom: 8px;
             text-align: center;
         }
         .camera-container {
@@ -71,7 +77,7 @@
         .btn-start { background-color: #00c853; flex: 1 1 100%; font-size: 14px; }
         .btn-cam { background-color: #2979ff; flex: 0 0 44px; min-width: 44px; font-size: 16px; }
         .btn-snap { background-color: #e91e63; }
-        .btn-trail { background-color: #607d8b; }
+        .btn-trail { background-color: #455a64; }
         .btn-trail.active { background-color: #00e5ff; color: #000; }
         .btn-log { background-color: #ff9100; }
         .btn-export { background-color: #aa00ff; }
@@ -98,6 +104,9 @@
         .card.warn {
             border-right-color: #ff3d00;
         }
+        .card.stable {
+            border-right-color: #00e676;
+        }
         .card-val {
             font-weight: bold;
             font-family: monospace;
@@ -114,33 +123,38 @@
 </head>
 <body>
 
-    <h2>پروژه سایلنت اررو | آنالیز زوایا و رد حرکت (Motion Tracer)</h2>
+    <h2>پروژه سایلنت اررو | آنالیز بیومکانیک</h2>
+    <div class="subtitle">سیستم پایش ثبات سر و خطوط نیرو بر پایه متدولوژی Larry Wise</div>
     
     <div class="camera-container">
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="output_canvas"></canvas>
     </div>
 
-    <!-- دکمه‌های کنترل، ثبت و ردیابی حرکت -->
+    <!-- پنل ابزارها -->
     <div class="controls">
         <button id="startBtn" class="btn-start" onclick="initApp()">شروع آنالیز بیومکانیک 🏹</button>
         <button id="switchBtn" class="btn-cam" style="display: none;" onclick="toggleCamera()" title="تغییر دوربین">🔄</button>
         <button id="trailBtn" class="btn-trail" style="display: none;" onclick="toggleTracking()">ردیابی مسیر حرکت 궤: خاموش</button>
         <button id="snapBtn" class="btn-snap" style="display: none;" onclick="captureSnapshot()">عکس لحظه‌ای 📸</button>
         <button id="logBtn" class="btn-log" style="display: none;" onclick="logCurrentShot()">ثبت وضعیت تیر 🎯 (0)</button>
-        <button id="exportBtn" class="btn-export" style="display: none;" onclick="downloadCSV()">خروجی اکسل / CSV 📥</button>
+        <button id="exportBtn" class="btn-export" style="display: none;" onclick="downloadCSV()">خروجی اکسل (لری وایز) 📥</button>
     </div>
 
     <div id="log-status"></div>
 
-    <!-- داشبورد نمایش عددی زوایا -->
+    <!-- داشبورد زنده پارامترهای استخوانی -->
     <div class="dashboard" id="dashboard" style="display: none;">
+        <div class="card" id="cardHead">
+            <span>ثبات سر (LW):</span>
+            <span class="card-val" id="valHead">--</span>
+        </div>
         <div class="card" id="cardShoulder">
             <span>تراز شانه:</span>
             <span class="card-val" id="valShoulder">--</span>
         </div>
         <div class="card" id="cardSpine">
-            <span>شیب تنه:</span>
+            <span>تراز تنه:</span>
             <span class="card-val" id="valSpine">--</span>
         </div>
         <div class="card" id="cardDrawElbow">
@@ -154,10 +168,6 @@
         <div class="card" id="cardDrawWrist">
             <span>مچ کشش:</span>
             <span class="card-val" id="valDrawWrist">--</span>
-        </div>
-        <div class="card" id="cardBowWrist">
-            <span>مچ کمان:</span>
-            <span class="card-val" id="valBowWrist">--</span>
         </div>
     </div>
 
@@ -185,15 +195,16 @@
         let lastPoseData = null;
         let sessionLogs = [];
 
-        // وضعیت ردیابی مسیر حرکت مفاصل
+        // مخزن مسیر حرکت مفاصل برای ردیابی پایداری رهایی
         let isTrackingEnabled = false;
-        const MAX_TRAIL_LENGTH = 45; // طول تاریخچه رد خطوط
+        const MAX_TRAIL_LENGTH = 45;
         const jointTrails = {
-            drawElbow: [],   // لندمارک 14 (آرنج دست راست)
-            drawWrist: [],   // لندمارک 16 (مچ دست راست)
-            drawIndex: [],   // لندمارک 20 (انگشت دست راست)
-            bowWrist: [],    // لندمارک 15 (مچ دست چپ)
-            bowElbow: []     // لندمارک 13 (آرنج دست چپ)
+            headNose: [],    // سر
+            drawElbow: [],   // آرنج کشش
+            drawWrist: [],   // مچ کشش
+            drawIndex: [],   // انگشت رهایی
+            bowWrist: [],    // مچ کمان
+            bowElbow: []     // آرنج کمان
         };
 
         function toggleTracking() {
@@ -201,7 +212,6 @@
             if (isTrackingEnabled) {
                 trailBtn.classList.add('active');
                 trailBtn.innerText = "ردیابی مسیر حرکت 궤: روشن";
-                // پاکسازی مسیرهای قبلی
                 for (let k in jointTrails) jointTrails[k] = [];
             } else {
                 trailBtn.classList.remove('active');
@@ -211,7 +221,7 @@
         }
 
         async function initApp() {
-            startBtn.innerText = "در حال بارگذاری مدل هوش مصنوعی...";
+            startBtn.innerText = "در حال اتصال به هوش مصنوعی...";
             startBtn.disabled = true;
 
             pose = new Pose({
@@ -227,7 +237,6 @@
             });
 
             pose.onResults(onPoseResults);
-
             setupCamera();
         }
 
@@ -282,7 +291,6 @@
             ctx.fill();
         }
 
-        // نمایش برچسب عددی زوایا به صورت کادر شیشه‌ای برجسته روی هر مفصل
         function drawAngleLabel(x, y, text, bgColor = "rgba(0, 0, 0, 0.75)", textColor = "#00e676") {
             ctx.font = "bold 13px monospace";
             const textWidth = ctx.measureText(text).width;
@@ -295,7 +303,6 @@
             ctx.fillText(text, x, y);
         }
 
-        // رسم رد خطوط حرکتی مفصل‌ها با محو شدن تدریجی (Trailing)
         function renderTrail(points, colorRgb) {
             if (points.length < 2) return;
             for (let i = 1; i < points.length; i++) {
@@ -339,38 +346,54 @@
             // رسم اسکلت کامل بدن
             const skeletonPairs = [
                 [11, 12], [11, 23], [12, 24], [23, 24],
-                [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], // دست کمان و مچ و انگشتان
-                [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], // دست کشش و مچ و انگشتان
+                [11, 13], [13, 15], [15, 17], [15, 19],
+                [12, 14], [14, 16], [16, 18], [16, 20],
                 [23, 25], [25, 27],
                 [24, 26], [26, 28]
             ];
 
             skeletonPairs.forEach(([i, j]) => {
                 if (lm[i].vis > 0.4 && lm[j].vis > 0.4) {
-                    drawBone(lm[i], lm[j], "rgba(255, 255, 255, 0.35)", 2);
+                    drawBone(lm[i], lm[j], "rgba(255, 255, 255, 0.3)", 2);
                 }
             });
 
-            for (let i = 11; i <= 22; i++) {
-                if (lm[i].vis > 0.4) {
-                    drawJoint(lm[i], "#00e676", 4);
-                }
+            for (let i = 11; i <= 28; i++) {
+                if (lm[i].vis > 0.4) drawJoint(lm[i], "#00e676", 4);
             }
 
-            // متغیرهای زاویه
+            let headTiltVal = null;
             let shoulderTiltVal = null;
             let spineLeanVal = null;
             let drawElbowVal = null;
             let bowElbowVal = null;
             let drawWristVal = null;
-            let bowWristVal = null;
 
-            // ۱. تراز شانه
+            // ۱. آنالیز ثبات سر (Head Stability بر اساس Larry Wise: زیر ۳.۵ درجه)
+            if (lm[0].vis > 0.5 && lm[11].vis > 0.5 && lm[12].vis > 0.5) {
+                const midShoulder = { x: (lm[11].x + lm[12].x) / 2, y: (lm[11].y + lm[12].y) / 2 };
+                const neckDy = midShoulder.y - lm[0].y;
+                const neckDx = midShoulder.x - lm[0].x;
+                const headAngle = Math.abs((Math.atan2(neckDy, neckDx) * 180) / Math.PI);
+                headTiltVal = parseFloat(Math.abs(90 - headAngle).toFixed(1));
+
+                const isHeadStable = headTiltVal <= 3.5;
+                drawBone(midShoulder, lm[0], isHeadStable ? "#00e676" : "#ff3d00", 3);
+                drawJoint(lm[0], isHeadStable ? "#00e676" : "#ff3d00", 6);
+
+                drawAngleLabel(lm[0].x + 10, lm[0].y - 10, `سر: ${headTiltVal}°`, "rgba(0,0,0,0.85)", isHeadStable ? "#00e676" : "#ff3d00");
+
+                const headCard = document.getElementById('cardHead');
+                document.getElementById('valHead').innerText = `${headTiltVal}° ${isHeadStable ? 'ثابت ✓' : 'انحراف ⚠️'}`;
+                headCard.className = isHeadStable ? "card stable" : "card warn";
+            }
+
+            // ۲. تراز شانه (Shoulder Alignment)
             if (lm[11].vis > 0.5 && lm[12].vis > 0.5) {
                 const dy = lm[12].y - lm[11].y;
                 const dx = lm[12].x - lm[11].x;
-                const shoulderSlope = Math.abs((Math.atan2(dy, dx) * 180) / Math.PI);
-                shoulderTiltVal = parseFloat(Math.abs(180 - shoulderSlope).toFixed(2));
+                const slope = Math.abs((Math.atan2(dy, dx) * 180) / Math.PI);
+                shoulderTiltVal = parseFloat(Math.abs(180 - slope).toFixed(2));
 
                 const isBalanced = shoulderTiltVal <= 3.5;
                 drawBone(lm[11], lm[12], isBalanced ? "#00e676" : "#ff3d00", 4);
@@ -383,7 +406,7 @@
                 document.getElementById('cardShoulder').className = isBalanced ? "card" : "card warn";
             }
 
-            // ۲. شیب تنه
+            // ۳. تراز ستون فقرات و تنه
             if (lm[11].vis > 0.5 && lm[12].vis > 0.5 && lm[23].vis > 0.5 && lm[24].vis > 0.5) {
                 const midShoulder = { x: (lm[11].x + lm[12].x) / 2, y: (lm[11].y + lm[12].y) / 2 };
                 const midHip = { x: (lm[23].x + lm[24].x) / 2, y: (lm[23].y + lm[24].y) / 2 };
@@ -400,7 +423,7 @@
                 document.getElementById('cardSpine').className = spineOk ? "card" : "card warn";
             }
 
-            // ۳. آرنج و مچ کشش (سمت راست: ۱۲ شانه، ۱۴ آرنج، ۱۶ مچ، ۲۰ انگشت)
+            // ۴. آرنج و مچ دست کشش
             if (lm[12].vis > 0.5 && lm[14].vis > 0.5 && lm[16].vis > 0.5) {
                 drawElbowVal = calculateAngle(lm[12], lm[14], lm[16]);
                 drawBone(lm[12], lm[14], "#2979ff", 3);
@@ -408,7 +431,6 @@
                 drawAngleLabel(lm[14].x + 10, lm[14].y, `${drawElbowVal}°`, "rgba(10,25,50,0.85)", "#64b5f6");
                 document.getElementById('valDrawElbow').innerText = `${drawElbowVal}°`;
 
-                // زاویه مچ به انگشتان
                 if (lm[20] && lm[20].vis > 0.4) {
                     drawWristVal = calculateAngle(lm[14], lm[16], lm[20]);
                     drawAngleLabel(lm[16].x + 10, lm[16].y, `${drawWristVal}°`, "rgba(0,40,20,0.85)", "#a7ffeb");
@@ -416,56 +438,49 @@
                 }
             }
 
-            // ۴. آرنج و مچ کمان (سمت چپ: ۱۱ شانه، ۱۳ آرنج، ۱۵ مچ، ۱۹ انگشت)
+            // ۵. آرنج دست کمان
             if (lm[11].vis > 0.5 && lm[13].vis > 0.5 && lm[15].vis > 0.5) {
                 bowElbowVal = calculateAngle(lm[11], lm[13], lm[15]);
                 drawBone(lm[11], lm[13], "#00bcd4", 3);
                 drawBone(lm[13], lm[15], "#00bcd4", 3);
                 drawAngleLabel(lm[13].x - 45, lm[13].y, `${bowElbowVal}°`, "rgba(0,30,40,0.85)", "#80deea");
                 document.getElementById('valBowElbow').innerText = `${bowElbowVal}°`;
-
-                if (lm[19] && lm[19].vis > 0.4) {
-                    bowWristVal = calculateAngle(lm[13], lm[15], lm[19]);
-                    drawAngleLabel(lm[15].x - 45, lm[15].y, `${bowWristVal}°`, "rgba(0,40,20,0.85)", "#b9f6ca");
-                    document.getElementById('valBowWrist').innerText = `${bowWristVal}°`;
-                }
             }
 
-            // ================= ردیابی و ترسیم خطوط حرکت (Tracer) =================
+            // ۶. ردیابی مسیر حرکت مفاصل و سر (Motion Tracer)
             if (isTrackingEnabled) {
-                // ثبت نقاط در تاریخچه
+                if (lm[0].vis > 0.4) jointTrails.headNose.push({ x: lm[0].x, y: lm[0].y });
                 if (lm[14].vis > 0.4) jointTrails.drawElbow.push({ x: lm[14].x, y: lm[14].y });
                 if (lm[16].vis > 0.4) jointTrails.drawWrist.push({ x: lm[16].x, y: lm[16].y });
                 if (lm[20] && lm[20].vis > 0.4) jointTrails.drawIndex.push({ x: lm[20].x, y: lm[20].y });
                 if (lm[15].vis > 0.4) jointTrails.bowWrist.push({ x: lm[15].x, y: lm[15].y });
                 if (lm[13].vis > 0.4) jointTrails.bowElbow.push({ x: lm[13].x, y: lm[13].y });
 
-                // محدود کردن طول آرایه‌ها
                 for (let k in jointTrails) {
                     if (jointTrails[k].length > MAX_TRAIL_LENGTH) {
                         jointTrails[k].shift();
                     }
                 }
 
-                // رسم رد نوری هر مفصل با رنگ متمایز
-                renderTrail(jointTrails.drawElbow, "41, 121, 255");   // آبی روشن برای آرنج کشش
-                renderTrail(jointTrails.drawWrist, "255, 64, 129");   // صورتی نئونی برای مچ دست کشش
-                renderTrail(jointTrails.drawIndex, "255, 234, 0");    // زرد برای انگشتان کشش / رهایی
-                renderTrail(jointTrails.bowWrist, "0, 229, 255");     // فیروزه‌ای برای مچ دست کمان
-                renderTrail(jointTrails.bowElbow, "0, 230, 118");     // سبز برای آرنج کمان
+                renderTrail(jointTrails.headNose, "224, 64, 251");  // بنفش: سر
+                renderTrail(jointTrails.drawElbow, "41, 121, 255");    // آبی: آرنج کشش
+                renderTrail(jointTrails.drawWrist, "255, 64, 129");    // صورتی: مچ کشش
+                renderTrail(jointTrails.drawIndex, "255, 234, 0");     // زرد: انگشت رهایی
+                renderTrail(jointTrails.bowWrist, "0, 229, 255");      // فیروزه‌ای: مچ کمان
+                renderTrail(jointTrails.bowElbow, "0, 230, 118");      // سبز: آرنج کمان
             }
 
             lastPoseData = {
+                headTilt: headTiltVal,
                 shoulderTilt: shoulderTiltVal,
                 spineLean: spineLeanVal,
                 drawElbow: drawElbowVal,
                 bowElbow: bowElbowVal,
                 drawWrist: drawWristVal,
-                bowWrist: bowWristVal,
                 fps: currentFps
             };
 
-            // نمایش FPS
+            // FPS Overlay
             ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
             ctx.fillRect(8, 8, 120, 36);
             ctx.fillStyle = "#00e676";
@@ -474,7 +489,7 @@
             ctx.fillText(`AI FPS: ${currentFps}`, 15, 30);
         }
 
-        // ================= توابع عکس‌برداری، لاگ و خروجی =================
+        // ================= توابع عکس‌برداری و خروجی اکسل بر پایه لری وایز =================
 
         function captureSnapshot() {
             if (!video.videoWidth) return;
@@ -492,18 +507,18 @@
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
             
             downloadLink.href = imageURL;
-            downloadLink.download = `SilentArrows_Shot_${timestamp}.png`;
+            downloadLink.download = `SilentArrows_Snapshot_${timestamp}.png`;
             document.body.appendChild(downloadLink);
             downloadLink.click();
             document.body.removeChild(downloadLink);
 
-            logStatus.innerText = "📸 عکس با تمام زوایا و خطوط حرکتی در گالری ذخیره شد!";
+            logStatus.innerText = "📸 تصویر بیومکانیک در گالری ذخیره شد!";
             setTimeout(() => { logStatus.innerText = ""; }, 3000);
         }
 
         function logCurrentShot() {
             if (!lastPoseData || lastPoseData.shoulderTilt === null) {
-                logStatus.innerText = "⚠️ وضعیت کامل شناسایی نشده است!";
+                logStatus.innerText = "⚠️ اسکلت بدن شناسایی نشده است!";
                 return;
             }
 
@@ -511,36 +526,49 @@
             const now = new Date();
             const timeStr = now.toTimeString().split(' ')[0];
 
+            // ارزیابی خطای بیومکانیک طبق آموزه‌های لری وایز
+            let lwDiagnosis = "Optimal Alignment";
+            if (lastPoseData.headTilt > 3.5) {
+                lwDiagnosis = "Head Creep (کج شدن سر به سمت زه)";
+            } else if (lastPoseData.shoulderTilt > 3.5) {
+                lwDiagnosis = "High Shoulder (بالا آمدن شانه کمان)";
+            } else if (lastPoseData.spineLean > 4.0) {
+                lwDiagnosis = "Spine Lean (انحراف ستون فقرات)";
+            }
+
             const entry = {
                 shot: shotNumber,
                 time: timeStr,
+                headTilt: lastPoseData.headTilt || 0,
+                headStatus: (lastPoseData.headTilt <= 3.5) ? "Stable" : "Unstable",
                 shoulderTilt: lastPoseData.shoulderTilt,
                 spineLean: lastPoseData.spineLean,
                 drawElbow: lastPoseData.drawElbow,
                 bowElbow: lastPoseData.bowElbow,
                 drawWrist: lastPoseData.drawWrist || "--",
-                bowWrist: lastPoseData.bowWrist || "--",
+                diagnosis: lwDiagnosis,
                 fps: lastPoseData.fps
             };
 
             sessionLogs.push(entry);
             logBtn.innerText = `ثبت وضعیت تیر 🎯 (${shotNumber})`;
-            logStatus.innerText = `✓ تیر ${shotNumber} ثبت شد (آرنج: ${entry.drawElbow}° | مچ: ${entry.drawWrist}°)`;
+            logStatus.innerText = `✓ تیر ${shotNumber} ثبت شد | ارزیابی: ${lwDiagnosis}`;
 
-            setTimeout(() => { logStatus.innerText = ""; }, 3000);
+            setTimeout(() => { logStatus.innerText = ""; }, 3500);
         }
 
         function downloadCSV() {
             if (sessionLogs.length === 0) {
-                alert("هنوز تیری ثبت نشده است. ابتدا روی 'ثبت وضعیت تیر' بزنید.");
+                alert("هنوز تیری ثبت نشده است. ابتدا چند تیر را ثبت کنید.");
                 return;
             }
 
+            // هدر تحلیلی Larry Wise
             let csvContent = "\uFEFF";
-            csvContent += "Shot_Number,Time,Shoulder_Tilt_Deg,Spine_Lean_Deg,Draw_Elbow_Deg,Bow_Elbow_Deg,Draw_Wrist_Deg,Bow_Wrist_Deg,FPS\n";
+            csvContent += "Shot_No,Time,Head_Stability_LW,Head_Tilt_Deg,Shoulder_Tilt_Deg,Spine_Lean_Deg,Draw_Elbow_Angle,Bow_Elbow_Angle,Draw_Wrist_Angle,Larry_Wise_Evaluation,FPS\n";
 
             sessionLogs.forEach(r => {
-                csvContent += `${r.shot},${r.time},${r.shoulderTilt},${r.spineLean},${r.drawElbow},${r.bowElbow},${r.drawWrist},${r.bowWrist},${r.fps}\n`;
+                csvContent += `${r.shot},${r.time},${r.headStatus},${r.headTilt},${r.shoulderTilt},${r.spineLean},${r.drawElbow},${r.bowElbow},${r.drawWrist},"${r.diagnosis}",${r.fps}\n`;
             });
 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -549,7 +577,7 @@
             const dateStr = new Date().toISOString().slice(0, 10);
             
             link.setAttribute("href", url);
-            link.setAttribute("download", `SilentArrows_Session_${dateStr}.csv`);
+            link.setAttribute("download", `SilentArrows_LarryWise_${dateStr}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
