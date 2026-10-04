@@ -1,528 +1,414 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Silent Arrows | سامانه آنالیز بیومکانیک تیراندازی با کمان</title>
-    
-    <!-- کتابخانه‌های هوش مصنوعی MediaPipe Pose گوگل -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Silent Arrows | آنالیز بیومکانیک تیراندازی با کمان</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<style>
+:root{
+  --bg:#0d0f14; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+  --txt:#e8eaef; --dim:#9aa0ad; --acc:#00e5a0; --acc2:#2979ff; --warn:#ff5252; --gold:#ffc400;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--txt);
+  font-family:Tahoma,"Segoe UI",Vazirmatn,sans-serif;
+  min-height:100vh; display:flex; flex-direction:column; align-items:center;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+h1,h2,h3{margin:6px 0;}
+.wrap{width:100%; max-width:640px; padding:10px 12px 40px;}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;}
 
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            padding: 10px;
-            background-color: #0d1117;
-            color: #e6edf3;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Tahoma, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
+/* ---------- Gate ---------- */
+#gate{max-width:400px;width:92%;}
+#gate .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 20px;margin-top:30px;}
+#gate input{width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--txt);font-size:16px;text-align:center;letter-spacing:2px;outline:none;}
+#gate input:focus{border-color:var(--acc);}
+.btn{border:none;border-radius:12px;padding:12px 18px;font-size:15px;font-weight:bold;cursor:pointer;
+  background:var(--acc);color:#002015;transition:filter .15s;}
+.btn:active{filter:brightness(.85);}
+.btn.secondary{background:var(--panel2);color:var(--txt);border:1px solid var(--line);}
+.btn.blue{background:var(--acc2);color:#fff;}
+.btn.danger{background:var(--warn);color:#fff;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.err{color:var(--warn);font-size:13px;min-height:18px;margin-top:8px;}
 
-        /* صفحه قفل اختصاصی */
-        #authOverlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            background: #090d13;
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        .auth-card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            padding: 24px;
-            width: 100%;
-            max-width: 320px;
-            text-align: center;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-        }
-        .auth-card h3 { margin: 0 0 12px; color: #00e676; font-size: 1.15rem; }
-        .auth-input {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #30363d;
-            background: #0d1117;
-            color: #fff;
-            font-size: 16px;
-            text-align: center;
-            outline: none;
-            margin-bottom: 12px;
-        }
-        .auth-btn {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: none;
-            background: #00c853;
-            color: #fff;
-            font-weight: bold;
-            font-size: 15px;
-            cursor: pointer;
-        }
-        #authError { color: #ff5252; margin-top: 10px; font-size: 13px; }
+/* ---------- Camera ---------- */
+.cam-box{position:relative;width:100%;aspect-ratio:3/4;background:#000;border-radius:16px;overflow:hidden;
+  border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.6);}
+#video,#cv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+#cv{transform:scaleX(var(--mirror,0));}
+#camFlip{position:absolute;top:10px;left:10px;z-index:5;width:44px;height:44px;border-radius:50%;
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:20px;cursor:pointer;}
+#recBadge{position:absolute;top:12px;right:12px;z-index:5;background:rgba(255,0,0,.85);color:#fff;
+  padding:4px 10px;border-radius:20px;font-size:12px;font-weight:bold;display:none;}
+#shotFlash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s;}
+.overlay-hud{position:absolute;bottom:8px;right:8px;left:8px;z-index:4;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+.pill{background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:11px;
+  padding:4px 9px;border-radius:14px;backdrop-filter:blur(4px);}
+.pill b{color:var(--acc);}
 
-        h2 { margin: 8px 0 10px; font-size: 1.1rem; color: #58a6ff; text-align: center; }
-        
-        .camera-container {
-            position: relative;
-            width: 96vw;
-            max-width: 640px;
-            aspect-ratio: 4/3;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 2px solid #30363d;
-        }
-        video { display: none; }
-        canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        #loadingStatus {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.85);
-            padding: 12px 20px;
-            border-radius: 8px;
-            color: #00e676;
-            font-size: 13px;
-            display: none;
-            pointer-events: none;
-            text-align: center;
-        }
-
-        .dashboard {
-            width: 96vw;
-            max-width: 640px;
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 10px;
-            margin-top: 10px;
-            padding: 10px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 13px;
-        }
-        .metric-box {
-            background: #0d1117;
-            padding: 8px;
-            border-radius: 6px;
-            border-right: 3px solid #00c853;
-        }
-        .metric-val { font-weight: bold; color: #00e676; }
-
-        .calib-status {
-            width: 96vw;
-            max-width: 640px;
-            background: #0d1117;
-            border: 1px dashed #30363d;
-            border-radius: 8px;
-            margin-top: 8px;
-            padding: 6px 12px;
-            font-size: 12px;
-            color: #8b949e;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .controls {
-            margin-top: 10px;
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-width: 640px;
-        }
-        .btn {
-            color: #fff;
-            border: none;
-            padding: 10px 14px;
-            font-size: 13px;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .btn-green { background-color: #00c853; }
-        .btn-blue { background-color: #2196f3; }
-        .btn-orange { background-color: #ff9800; }
-        .btn-purple { background-color: #9c27b0; }
-        .btn-teal { background-color: #009688; }
-        .btn:active { opacity: 0.85; }
-
-        #logCounter {
-            font-size: 12px;
-            color: #8b949e;
-            margin-top: 6px;
-        }
-    </style>
+/* ---------- Panels ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px;}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.metric{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;}
+.metric .lbl{font-size:11px;color:var(--dim);}
+.metric .val{font-size:18px;font-weight:bold;color:var(--acc);}
+.metric .val.bad{color:var(--warn);}
+.metric .val.ok{color:var(--acc);}
+label.fld{display:block;font-size:12px;color:var(--dim);margin:8px 0 4px;}
+input[type=number]{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--txt);font-size:15px;outline:none;}
+.status{font-size:13px;color:var(--dim);min-height:18px;margin-top:6px;}
+.big-timer{font-size:34px;font-weight:bold;color:var(--gold);text-align:center;min-height:44px;}
+.alerts li{background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.35);color:#ffb4b4;
+  border-radius:8px;padding:6px 10px;margin:5px 0;font-size:13px;list-style:none;}
+.alerts li.drill{background:rgba(41,121,255,.1);border-color:rgba(41,121,255,.4);color:#a9c8ff;}
+.controls{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.controls .full{grid-column:1/-1;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+th,td{border:1px solid var(--line);padding:5px 6px;text-align:center;}
+th{background:var(--panel2);color:var(--dim);font-weight:normal;}
+</style>
 </head>
 <body>
 
-    <!-- صفحه ورود امنیتی -->
-    <div id="authOverlay">
-        <div class="auth-card">
-            <h3>🏹 Silent Arrows</h3>
-            <p style="font-size: 12px; color: #8b949e; margin-bottom: 14px;">احراز هویت اختصاصی</p>
-            <input type="password" id="passInput" class="auth-input" placeholder="رمز عبور..." autocomplete="off">
-            <button class="auth-btn" onclick="checkAccess()">ورود</button>
-            <div id="authError"></div>
-        </div>
+<!-- ================= GATE ================= -->
+<div id="gate" class="center">
+  <div class="card">
+    <h2>🏹 سایلنت اروو</h2>
+    <p style="color:var(--dim);font-size:13px;">آنالیز بیومکانیک تیراندازی با کمان</p>
+    <label class="fld">برای ورود، رمز عبور را وارد کنید</label>
+    <input type="password" id="pw" placeholder="••••••••" autocomplete="current-password">
+    <div class="err" id="gateErr"></div>
+    <button class="btn" style="width:100%" onclick="tryLogin()">ورود</button>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="wrap" style="display:none">
+  <h2 style="text-align:center">پروژه سایلنت اروو | آنالیز بیومکانیک</h2>
+
+  <div class="cam-box">
+    <button id="camFlip" onclick="switchCamera()" title="تغییر دوربین">🔄</button>
+    <div id="recBadge">● ضبط جلسه</div>
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="cv"></canvas>
+    <div id="shotFlash"></div>
+    <div class="overlay-hud">
+      <div class="pill">آرنج کمان: <b id="hBow">--</b></div>
+      <div class="pill">آرنج کشش: <b id="hDraw">--</b></div>
+      <div class="pill">هم‌ترازی شانه: <b id="hSh">--</b></div>
+      <div class="pill">ثبات سر: <b id="hHead">--</b></div>
     </div>
+  </div>
 
-    <h2>Silent Arrows | سامانه آنالیز بیومکانیک</h2>
-    
-    <div class="camera-container">
-        <video id="webcam" playsinline></video>
-        <canvas id="output_canvas"></canvas>
-        <div id="loadingStatus">در حال راه‌اندازی مدل بیومکانیک... لطفاً صبر کنید</div>
+  <div class="controls">
+    <button class="btn full" id="startBtn" onclick="startCamera()">روشن کردن دوربین</button>
+    <button class="btn blue" id="sessBtn" onclick="toggleSession()" disabled>شروع جلسه (۶ تیر)</button>
+    <button class="btn secondary" onclick="calibrate()" id="calBtn" disabled>کالیبره فرم من</button>
+    <button class="btn secondary full" onclick="resetCalibration()">پاک کردن کالیبراسیون</button>
+  </div>
+  <div class="big-timer" id="timer"></div>
+  <div class="status" id="status"></div>
+
+  <div class="card">
+    <h3 style="font-size:14px">⚙️ تنظیمات جلسه خودکار</h3>
+    <div class="grid2">
+      <div><label class="fld">تاخیر اولیه (ثانیه)</label><input type="number" id="cfgDelay" value="5" min="1" max="60"></div>
+      <div><label class="fld">فاصله بین تیرها (ثانیه)</label><input type="number" id="cfgInterval" value="10" min="3" max="120"></div>
     </div>
+  </div>
 
-    <!-- وضعیت کالیبراسیون شخصی -->
-    <div class="calib-status">
-        <span>وضعیت کالیبراسیون: <strong id="calibLabel" style="color: #ff9800;">تنظیم پیش‌فرض</strong></span>
-        <button onclick="resetCalibration()" style="background:none; border:none; color:#ff5252; cursor:pointer; font-size:11px;">[بازنشانی]</button>
+  <div class="card">
+    <h3 style="font-size:14px">📐 اندازه‌گیری زنده</h3>
+    <div class="grid2">
+      <div class="metric"><div class="lbl">زاویه آرنج بازوی کمان</div><div class="val" id="mBow">--</div></div>
+      <div class="metric"><div class="lbl">زاویه آرنج بازوی کشش</div><div class="val" id="mDraw">--</div></div>
+      <div class="metric"><div class="lbl">هم‌ترازی شانه‌ها</div><div class="val" id="mSh">--</div></div>
+      <div class="metric"><div class="lbl">شیب / ثبات سر</div><div class="val" id="mHead">--</div></div>
     </div>
+    <div class="status" id="calInfo"></div>
+  </div>
 
-    <!-- داشبورد زنده زوایا -->
-    <div class="dashboard">
-        <div class="metric-box">زاویه آرنج کشش: <span id="drawElbowVal" class="metric-val">--</span></div>
-        <div class="metric-box">زاویه دست کمان: <span id="bowArmVal" class="metric-val">--</span></div>
-        <div class="metric-box">ثبات سر: <span id="headStabilityVal" class="metric-val">--</span></div>
-        <div class="metric-box">تراز شانه: <span id="shoulderAlignVal" class="metric-val">--</span></div>
-    </div>
+  <div class="card">
+    <h3 style="font-size:14px">⚠️ خطاها و تمرین‌های پیشنهادی</h3>
+    <ul class="alerts" id="alerts"><li style="background:none;border:none;color:var(--dim)">هنوز داده‌ای وجود ندارد.</li></ul>
+  </div>
 
-    <!-- دکمه‌های کنترل و عملیات -->
-    <div class="controls">
-        <button id="startBtn" class="btn btn-green" onclick="initSystem()">▶ روشن کردن دوربین</button>
-        <button id="flipBtn" class="btn btn-blue" style="display:none;" onclick="toggleCamera()">🔄 تغییر دوربین</button>
-        <button id="calibBtn" class="btn btn-teal" style="display:none;" onclick="calibratePersonalProfile()">🎯 ثبت کالیبراسیون</button>
-        <button id="snapBtn" class="btn btn-purple" style="display:none;" onclick="takeSnapshot()">📸 ثبت عکس (Snapshot)</button>
-        <button id="logBtn" class="btn btn-orange" style="display:none;" onclick="logCurrentShot()">🏹 ثبت تیر</button>
-        <button id="exportBtn" class="btn btn-green" style="display:none;" onclick="exportToCSV()">📥 خروجی اکسل (CSV)</button>
-    </div>
+  <div class="card">
+    <h3 style="font-size:14px">📊 نتایج تیرها</h3>
+    <div style="overflow-x:auto"><table id="tbl">
+      <thead><tr><th>تیر</th><th>آرنج کمان</th><th>آرنج کشش</th><th>شانه</th><th>سر</th><th>انحراف از کالیبره</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+</div>
 
-    <div id="logCounter">تعداد تیرهای ثبت‌شده در این جلسه: <span id="shotCount" style="color:#00e676; font-weight:bold;">۰</span></div>
+<script>
+"use strict";
+/* ================= SHA-256 Gate ================= */
+const PASS_HASH = "5f64f5aa23cc4318a925608861b31455e409bee91daafde093c538897dae9241";
+async function sha256(msg){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function tryLogin(){
+  const h = await sha256(document.getElementById("pw").value.trim());
+  if(h === PASS_HASH){
+    sessionStorage.setItem("sa_auth","1");
+    document.getElementById("gate").style.display="none";
+    document.getElementById("app").style.display="block";
+    loadCalibration();
+  }else{
+    document.getElementById("gateErr").textContent = "رمز عبور اشتباه است.";
+  }
+}
+document.getElementById("pw").addEventListener("keydown",e=>{if(e.key==="Enter")tryLogin();});
+if(sessionStorage.getItem("sa_auth")==="1"){
+  document.getElementById("gate").style.display="none";
+  document.getElementById("app").style.display="block";
+  loadCalibration();
+}
 
-    <script>
-        // احراز هویت هش‌شده
-        const SECURE_HASH = "5f64f5aa23cc4318a925608861b31455e409bee91daafde093c538897dae9241";
+/* ================= Helpers ================= */
+const $ = id => document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function deg(p1,p2,p3){ // angle at p2
+  const a1=Math.atan2(p1.y-p2.y,p1.x-p2.x), a2=Math.atan2(p3.y-p2.y,p3.x-p2.x);
+  let d=Math.abs(a1-a2)*180/Math.PI; return d>180?360-d:d;
+}
+function lerp(a,b,t){return a+(b-a)*t;}
 
-        async function sha256(str) {
-            const buffer = new TextEncoder().encode(str);
-            const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
+/* ================= Web Audio ================= */
+let actx=null;
+function audio(){ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended")actx.resume(); return actx; }
+function beep(freq=880,dur=0.12,vol=0.25,type="sine"){
+  try{
+    const a=audio(), o=a.createOscillator(), g=a.createGain();
+    o.type=type; o.frequency.value=freq; o.connect(g); g.connect(a.destination);
+    g.gain.setValueAtTime(vol,a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+dur);
+    o.start(); o.stop(a.currentTime+dur);
+  }catch(e){}
+}
+function shotSound(){ beep(1500,0.09,0.3,"square"); setTimeout(()=>beep(1000,0.15,0.3,"square"),110); }
 
-        async function checkAccess() {
-            const inputVal = document.getElementById('passInput').value;
-            const inputHash = await sha256(inputVal);
-            if (inputHash === SECURE_HASH) {
-                localStorage.setItem("sa_auth_token", "authorized_user");
-                document.getElementById('authOverlay').style.display = 'none';
-            } else {
-                document.getElementById('authError').innerText = "رمز عبور نادرست است!";
-            }
-        }
+/* ================= Camera ================= */
+const video=$("video"), canvas=$("cv"), ctx=canvas.getContext("2d");
+let facing="user", stream=null, camera=null, pose=null, running=false, mirrored=true;
+canvas.style.setProperty("--mirror",1);
 
-        window.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem("sa_auth_token") === "authorized_user") {
-                document.getElementById('authOverlay').style.display = 'none';
-            }
-            document.getElementById('passInput').addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') checkAccess();
-            });
-            loadPersonalCalibration();
-        });
+async function startStream(){
+  stopStream();
+  stream = await navigator.mediaDevices.getUserMedia({
+    video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}}, audio:false
+  });
+  video.srcObject=stream;
+  await new Promise(r=>{ video.onloadedmetadata=()=>{video.play(); r();}; });
+  canvas.width=video.videoWidth||640; canvas.height=video.videoHeight||480;
+  mirrored = facing==="user";
+  canvas.style.setProperty("--mirror", mirrored?1:0);
+}
+function stopStream(){
+  if(stream){stream.getTracks().forEach(t=>t.stop()); stream=null;}
+}
+async function startCamera(){
+  try{
+    $("status").textContent="در حال بارگذاری مدل...";
+    await startStream();
+    if(!pose){
+      pose = new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+      pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
+      pose.onResults(onResults);
+    }
+    if(!camera){
+      camera = new Camera(video,{
+        onFrame:async()=>{ if(running) await pose.send({image:video}); },
+        width:1280,height:720
+      });
+      // we manage our own loop to support switching:
+    }
+    running=true;
+    loop();
+    $("startBtn").style.display="none";
+    $("sessBtn").disabled=false; $("calBtn").disabled=false;
+    $("status").textContent="دوربین فعال است. مدل در حال ردیابی...";
+  }catch(err){ $("status").textContent="خطا در دسترسی به دوربین: "+err.message; }
+}
+async function switchCamera(){
+  facing = facing==="user" ? "environment" : "user";
+  try{
+    await startStream();
+    $("status").textContent = facing==="user" ? "دوربین جلو" : "دوربین عقب";
+  }catch(e){ $("status").textContent="تعویض دوربین ممکن نشد: "+e.message; }
+}
+function loop(){
+  if(!running) return;
+  if(video.readyState>=2) pose.send({image:video});
+  requestAnimationFrame(loop);
+}
 
-        // سیستم بیومکانیک و کالیبراسیون
-        const videoElement = document.getElementById('webcam');
-        const canvasElement = document.getElementById('output_canvas');
-        const canvasCtx = canvasElement.getContext('2d');
-        const loadingStatus = document.getElementById('loadingStatus');
+/* ================= Biomechanics ================= */
+// indices: 11 Lsh 12 Rsh 13 Lel 14 Rel 15 Lwr 16 Rwr 7 Lear 8 Rear 0 nose 9/10 mouth
+let live={bow:null,draw:null,sh:null,head:null,lm:null};
+let smooth={bow:150,draw:150,sh:0,head:0};
+let calibration=null; // stored baseline
+let shots=[], sessionOn=false, timers=[];
 
-        let poseDetector = null;
-        let camera = null;
-        let currentFacingMode = "user";
+function computeAngles(lm){
+  const g=i=>({x:lm[i].x,y:lm[i].y});
+  const bowArm   = deg(g(11),g(13),g(15));   // left elbow (bow arm for right-handed)
+  const drawArm  = deg(g(12),g(14),g(16));   // right elbow
+  const sh       = Math.abs(Math.atan2(lm[12].y-lm[11].y, lm[12].x-lm[11].x)*180/Math.PI);
+  const head     = Math.abs(Math.atan2(lm[8].y-lm[7].y, lm[8].x-lm[7].x)*180/Math.PI); // ear line tilt
+  return {bow:bowArm, draw:drawArm, sh, head};
+}
+function onResults(res){
+  ctx.save();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(res.poseLandmarks){
+    const lm=res.poseLandmarks;
+    // draw skeleton
+    const conns=window.POSE_CONNECTIONS||[];
+    ctx.strokeStyle="rgba(0,229,160,.9)"; ctx.lineWidth=3;
+    conns.forEach(c=>{ const a=lm[c[0]],b=lm[c[1]];
+      if(a.visibility>0.5&&b.visibility>0.5){ctx.beginPath();ctx.moveTo(a.x*canvas.width,a.y*canvas.height);ctx.lineTo(b.x*canvas.width,b.y*canvas.height);ctx.stroke();}});
+    const a=computeAngles(lm);
+    smooth.bow=lerp(smooth.bow,a.bow,0.4);
+    smooth.draw=lerp(smooth.draw,a.draw,0.4);
+    smooth.sh=lerp(smooth.sh,a.sh,0.4);
+    smooth.head=lerp(smooth.head,a.head,0.4);
+    live={bow:smooth.bow,draw:smooth.draw,sh:smooth.sh,head:smooth.head,lm};
+    // guide lines (screenshot style)
+    ctx.strokeStyle="rgba(0,255,100,.7)"; ctx.lineWidth=2; ctx.setLineDash([6,6]);
+    ctx.beginPath(); ctx.moveTo(lm[11].x*canvas.width,0); ctx.lineTo(lm[11].x*canvas.width,canvas.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lm[12].x*canvas.width,0); ctx.lineTo(lm[12].x*canvas.width,canvas.height); ctx.stroke();
+    const eyeY=lm[7].y*canvas.height;
+    ctx.beginPath(); ctx.moveTo(0,eyeY); ctx.lineTo(canvas.width,eyeY); ctx.stroke();
+    ctx.setLineDash([]);
+    updateHUD();
+  }
+  ctx.restore();
+}
+function fmt(v,dec=1){return v==null?"--":v.toFixed(dec);}
+function updateHUD(){
+  $("hBow").textContent=fmt(live.bow,0)+"°";   $("mBow").textContent=fmt(live.bow);
+  $("hDraw").textContent=fmt(live.draw,0)+"°"; $("mDraw").textContent=fmt(live.draw);
+  $("hSh").textContent=fmt(live.sh,0)+"°";     $("mSh").textContent=fmt(live.sh);
+  $("hHead").textContent=fmt(live.head,0)+"°"; $("mHead").textContent=fmt(live.head);
+  detectErrors();
+}
 
-        let sessionLogs = [];
-        let currentMetrics = {
-            drawElbow: 0,
-            bowArm: 0,
-            headTilt: 0,
-            shoulderSlope: 0,
-            headStatus: "--",
-            shoulderStatus: "--"
-        };
+/* ================= Calibration ================= */
+const CAL_KEY="sa_calibration_v1";
+function loadCalibration(){ calibration=JSON.parse(localStorage.getItem(CAL_KEY)||"null"); showCal(); }
+function showCal(){
+  $("calInfo").textContent = calibration
+    ? `کالیبره ذخیره‌شده — آرنج کمان: ${calibration.bow.toFixed(1)}° | کشش: ${calibration.draw.toFixed(1)}° | شانه: ${calibration.sh.toFixed(1)}° | سر: ${calibration.head.toFixed(1)}°`
+    : "کالیبراسیونی ذخیره نشده. روی دکمه «کالیبره فرم من» بزنید.";
+}
+async function calibrate(){
+  if(live.lm==null){$("status").textContent="دوربین/مدل آماده نیست.";return;}
+  // average over ~1.5s
+  $("status").textContent="کالیبراسیون... فرم خود را ثابت نگه دارید (۱.۵ ثانیه)";
+  const samples=[];
+  for(let i=0;i<15;i++){ samples.push({...live}); await new Promise(r=>setTimeout(r,100)); }
+  const avg=k=>samples.reduce((s,x)=>s+(x[k]??0),0)/samples.length;
+  calibration={bow:avg("bow"),draw:avg("draw"),sh:avg("sh"),head:avg("head"),t:Date.now()};
+  localStorage.setItem(CAL_KEY,JSON.stringify(calibration));
+  showCal(); $("status").textContent="کالیبراسیون ذخیره شد ✅"; beep(1200,.2);
+}
+function resetCalibration(){ localStorage.removeItem(CAL_KEY); calibration=null; showCal(); }
 
-        // مقادیر کالیبراسیون آناتومی شخصی
-        let personalProfile = {
-            drawElbowTarget: 165,
-            bowArmTarget: 175,
-            headTiltMax: 3,
-            shoulderSlopeMax: 4,
-            toleranceElbow: 6,
-            toleranceBowArm: 6,
-            isCustom: false
-        };
+/* ================= Error detection ================= */
+function detectErrors(){
+  const out=[];
+  if(live.lm==null){ renderAlerts(out); return; }
+  const base = calibration;
+  const d = base ? {bow:live.bow-base.bow, draw:live.draw-base.draw, sh:live.sh-base.sh, head:live.head-base.head} : null;
 
-        function loadPersonalCalibration() {
-            const saved = localStorage.getItem("sa_personal_profile");
-            if (saved) {
-                try {
-                    personalProfile = JSON.parse(saved);
-                    document.getElementById('calibLabel').innerText = `اختصاصی (آرنج: ${personalProfile.drawElbowTarget}° / دست: ${personalProfile.bowArmTarget}°)`;
-                    document.getElementById('calibLabel').style.color = '#00e676';
-                } catch(e) {}
-            }
-        }
+  if(d){
+    if(d.head > 6) out.push(["خزش سر به عقب/بالا (Head Creep)!","سر را روی ستون فقرات ثابت نگه دارید و فقط کمان را رها کنید."]);
+    else if(d.head < -6) out.push(["افت سر به جلو!","چانه را کمی بالا بیاورید و نقطه نشانه‌روی را ثابت نگاه کنید."]);
+    if(d.sh > 6) out.push(["بالا پریدن شانه (High Shoulder)!","شانه‌ی بازوی کشش را پایین و شل نگه دارید."]);
+    if(d.draw < -12) out.push(["ریزش آرنج کشش (Elbow Collapse)!","آرنج کشش را هم‌سطح یا بالاتر از خط شانه نگه دارید."]);
+  }else{
+    if(live.sh > 10) out.push(["خطای شانه: خط شانه‌ها بیش از حد کج است.","بدن را عمود بر زمین قرار دهید."]);
+    if(live.head > 8) out.push(["کجی سر زیاد است.","سر را صاف و عمود نگه دارید."]);
+  }
+  if(live.bow < 155) out.push(["بازوی کمان بیش از حد خم شده است (Elbow < 155°).","بازوی کمان را تقریباً صاف ولی قفل‌نشده نگه دارید."]);
+  renderAlerts(out, !!d);
+}
+function renderAlerts(list,cal){
+  const ul=$("alerts");
+  if(!list.length){ ul.innerHTML=`<li style="background:rgba(0,229,160,.08);border-color:rgba(0,229,160,.3);color:#a9ffd9">✅ فرم در محدوده خوب است.</li>`; return; }
+  ul.innerHTML = list.map(([e,drill])=>
+    `<li>⚠️ ${e}</li><li class="drill">🏋️ تمرین: ${drill}</li>`).join("");
+}
 
-        function calibratePersonalProfile() {
-            if (currentMetrics.drawElbow === 0) {
-                alert("هنوز بدنی توسط دوربین شناسایی نشده است! ابتدا در زاویه دید دوربین قرار بگیرید.");
-                return;
-            }
-
-            personalProfile.drawElbowTarget = currentMetrics.drawElbow;
-            personalProfile.bowArmTarget = currentMetrics.bowArm;
-            personalProfile.headTiltMax = Math.max(3, currentMetrics.headTilt + 1);
-            personalProfile.shoulderSlopeMax = Math.max(4, currentMetrics.shoulderSlope + 1);
-            personalProfile.isCustom = true;
-
-            localStorage.setItem("sa_personal_profile", JSON.stringify(personalProfile));
-            document.getElementById('calibLabel').innerText = `اختصاصی (آرنج: ${personalProfile.drawElbowTarget}° / دست: ${personalProfile.bowArmTarget}°)`;
-            document.getElementById('calibLabel').style.color = '#00e676';
-            alert(`کالیبراسیون با موفقیت ثبت شد!\nهدف آرنج کشش: ${personalProfile.drawElbowTarget}°\nهدف دست کمان: ${personalProfile.bowArmTarget}°`);
-        }
-
-        function resetCalibration() {
-            localStorage.removeItem("sa_personal_profile");
-            personalProfile = {
-                drawElbowTarget: 165,
-                bowArmTarget: 175,
-                headTiltMax: 3,
-                shoulderSlopeMax: 4,
-                toleranceElbow: 6,
-                toleranceBowArm: 6,
-                isCustom: false
-            };
-            document.getElementById('calibLabel').innerText = "تنظیم پیش‌فرض";
-            document.getElementById('calibLabel').style.color = '#ff9800';
-            alert("کالیبراسیون به حالت پیش‌فرض بازگشت.");
-        }
-
-        function calculateAngle(A, B, C) {
-            const radians = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
-            let angle = Math.abs(radians * 180.0 / Math.PI);
-            if (angle > 180.0) angle = 360 - angle;
-            return Math.round(angle);
-        }
-
-        // سیستم تحلیل عیب‌یابی و تمرین اصلاحی
-        function diagnoseAndRecommend(metrics, profile) {
-            const drawDiff = Math.abs(metrics.drawElbow - profile.drawElbowTarget);
-            const bowDiff = Math.abs(metrics.bowArm - profile.bowArmTarget);
-
-            let diagnosis = "ایده‌آل (Optimal)";
-            let drill = "فرم در دامنه استاندارد است؛ ادامه شلیک بدون تغییر";
-            let priority = "سبک";
-
-            if (metrics.headTilt > profile.headTiltMax) {
-                diagnosis = "انحراف و ناپایداری سر در انکر";
-                drill = "تمرین ثبات سر مقابل آینه با کش تمرینی (CLBWH)، ۳ ست ۳۰ ثانیه نگهداشت انکر بدون رهایی";
-                priority = "بالا";
-            } else if (metrics.shoulderSlope > profile.shoulderSlopeMax) {
-                diagnosis = "بالا آمدن شانه یا عدم تقارن ترقوه";
-                drill = "تمرین فعال‌سازی رومبوئید و پایین‌آوردن کتف (Scapular Depression) با کش سبک، ۳ ست ۱۲ تکرار";
-                priority = "بالا";
-            } else if (drawDiff > profile.toleranceElbow) {
-                diagnosis = `انحراف آرنج کشش (${drawDiff}° اختلاف)`;
-                drill = "تمرین چرخش به خط نیرو و امتداد خط دراو با کش، ۳ ست ۱۰ تکرار با تمرکز بر آرنج پشتی";
-                priority = "متوسط";
-            } else if (bowDiff > profile.toleranceBowArm) {
-                diagnosis = `افت زاویه دست کمان (${bowDiff}° اختلاف)`;
-                drill = "تمرین هل دادن به سمت هدف (Push-Pull Balance) و قفل نرم مفصل دست کمان، ۳ ست ۲۰ ثانیه";
-                priority = "متوسط";
-            }
-
-            return { diagnosis, drill, priority, drawDiff, bowDiff };
-        }
-
-        function onResults(results) {
-            loadingStatus.style.display = 'none';
-
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-            if (results.poseLandmarks) {
-                drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00e676', lineWidth: 3});
-                drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#ff5252', lineWidth: 1, radius: 4});
-
-                const lm = results.poseLandmarks;
-
-                const rightElbowAngle = calculateAngle(lm[12], lm[14], lm[16]);
-                const leftElbowAngle = calculateAngle(lm[11], lm[13], lm[15]);
-
-                const leftEar = lm[7];
-                const rightEar = lm[8];
-                const headTilt = Math.abs(Math.round((leftEar.y - rightEar.y) * 100));
-                const shoulderSlope = Math.abs(Math.round((lm[11].y - lm[12].y) * 100));
-
-                const headStatus = (headTilt <= personalProfile.headTiltMax) ? "پایدار" : "انحراف سر";
-                const shoulderStatus = (shoulderSlope <= personalProfile.shoulderSlopeMax) ? "تراز" : "عدم تقارن";
-
-                currentMetrics = {
-                    drawElbow: rightElbowAngle,
-                    bowArm: leftElbowAngle,
-                    headTilt: headTilt,
-                    shoulderSlope: shoulderSlope,
-                    headStatus: headStatus,
-                    shoulderStatus: shoulderStatus
-                };
-
-                document.getElementById('drawElbowVal').innerText = rightElbowAngle + '°';
-                document.getElementById('bowArmVal').innerText = leftElbowAngle + '°';
-                document.getElementById('headStabilityVal').innerText = headStatus;
-                document.getElementById('shoulderAlignVal').innerText = shoulderStatus;
-
-                // نمایش زنده روی تصویر
-                canvasCtx.fillStyle = "#ffff00";
-                canvasCtx.font = "bold 18px Arial";
-                canvasCtx.fillText(rightElbowAngle + "°", lm[14].x * canvasElement.width + 10, lm[14].y * canvasElement.height);
-                canvasCtx.fillText(leftElbowAngle + "°", lm[13].x * canvasElement.width + 10, lm[13].y * canvasElement.height);
-            }
-            canvasCtx.restore();
-        }
-
-        async function initSystem() {
-            document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('flipBtn').style.display = 'inline-block';
-            document.getElementById('calibBtn').style.display = 'inline-block';
-            document.getElementById('snapBtn').style.display = 'inline-block';
-            document.getElementById('logBtn').style.display = 'inline-block';
-            document.getElementById('exportBtn').style.display = 'inline-block';
-            loadingStatus.style.display = 'block';
-
-            poseDetector = new Pose({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-            });
-
-            poseDetector.setOptions({
-                modelComplexity: 1,
-                smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-
-            poseDetector.onResults(onResults);
-
-            camera = new Camera(videoElement, {
-                onFrame: async () => {
-                    await poseDetector.send({image: videoElement});
-                },
-                width: 640,
-                height: 480,
-                facingMode: currentFacingMode
-            });
-
-            await camera.start();
-            canvasElement.width = 640;
-            canvasElement.height = 480;
-        }
-
-        function toggleCamera() {
-            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
-            if (camera) {
-                camera.stop();
-                initSystem();
-            }
-        }
-
-        function takeSnapshot() {
-            const link = document.createElement('a');
-            const now = new Date().toISOString().replace(/[:.]/g, "-");
-            link.download = `SilentArrows_Snapshot_${now}.png`;
-            link.href = canvasElement.toDataURL("image/png");
-            link.click();
-        }
-
-        function logCurrentShot() {
-            if (currentMetrics.drawElbow === 0) {
-                alert("بدنی در کادر شناسایی نشده است.");
-                return;
-            }
-
-            const shotNumber = sessionLogs.length + 1;
-            const timeStr = new Date().toLocaleTimeString('fa-IR');
-            const analysis = diagnoseAndRecommend(currentMetrics, personalProfile);
-
-            sessionLogs.push({
-                shot: shotNumber,
-                time: timeStr,
-                drawElbow: currentMetrics.drawElbow,
-                drawTarget: personalProfile.drawElbowTarget,
-                drawDiff: analysis.drawDiff,
-                bowArm: currentMetrics.bowArm,
-                bowTarget: personalProfile.bowArmTarget,
-                bowDiff: analysis.bowDiff,
-                headTilt: currentMetrics.headTilt,
-                headStatus: currentMetrics.headStatus,
-                shoulderSlope: currentMetrics.shoulderSlope,
-                shoulderStatus: currentMetrics.shoulderStatus,
-                diagnosis: analysis.diagnosis,
-                drill: analysis.drill,
-                priority: analysis.priority
-            });
-
-            document.getElementById('shotCount').innerText = shotNumber;
-            alert(`تیر شماره ${shotNumber} ثبت شد.\nتشخیص: ${analysis.diagnosis}\nاولویت: ${analysis.priority}`);
-        }
-
-        function exportToCSV() {
-            if (sessionLogs.length === 0) {
-                alert("هنوز هیچ تیری ثبت نشده است! ابتدا دکمه «ثبت تیر» را بزنید.");
-                return;
-            }
-
-            let csvContent = "\uFEFF"; // کدگذاری BOM برای سازگاری کامل زبان فارسی در Excel
-            csvContent += "شماره تیر,زمان ثبت,زاویه آرنج کشش,هدف شخصی آرنج,انحراف از هدف,زاویه دست کمان,هدف شخصی دست کمان,انحراف از هدف,شاخص انحراف سر,وضعیت سر,شاخص شیب شانه,وضعیت شانه,تشخیص اصلی خطا,تمرین اصلاحی پیشنهادی,سطح اولویت\n";
-
-            sessionLogs.forEach(row => {
-                // پاک‌سازی کاما جهت حفظ ساختار ستون‌های CSV
-                const cleanDiagnosis = `"${row.diagnosis.replace(/"/g, '""')}"`;
-                const cleanDrill = `"${row.drill.replace(/"/g, '""')}"`;
-
-                csvContent += `${row.shot},${row.time},${row.drawElbow},${row.drawTarget},${row.drawDiff},${row.bowArm},${row.bowTarget},${row.bowDiff},${row.headTilt},${row.headStatus},${row.shoulderSlope},${row.shoulderStatus},${cleanDiagnosis},${cleanDrill},${row.priority}\n`;
-            });
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            const dateStr = new Date().toISOString().slice(0, 10);
-            link.href = URL.createObjectURL(blob);
-            link.download = `SilentArrows_Analysis_${dateStr}.csv`;
-            link.click();
-        }
-    </script>
+/* ================= Auto Session ================= */
+function toggleSession(){
+  if(sessionOn){ endSession(false); return; }
+  sessionOn=true; shots=[];
+  $("tbl").querySelector("tbody").innerHTML="";
+  $("recBadge").style.display="block";
+  $("sessBtn").textContent="لغو جلسه"; $("sessBtn").classList.add("danger");
+  audio();
+  const delay=clamp(+$("cfgDelay").value||5,1,60), interval=clamp(+$("cfgInterval").value||10,3,120);
+  let t=-delay; // negative = countdown before first shot
+  const tick=()=>{
+    if(!sessionOn) return;
+    if(t<=0){
+      const n=Math.ceil(-t);
+      if(t%1===0 && n>0 && Number.isInteger(t)) beep(700,.1,.2);
+      $("timer").textContent = n>0 ? `شروع در ${n}...` : "";
+    }
+    t++;
+    if(t>0 && (t)%interval===0) takeShot();
+    if(shots.length>=6){ finishSession(); return; }
+    timers.push(setTimeout(tick,1000));
+  };
+  tick();
+}
+function takeShot(){
+  if(live.lm==null) return;
+  const rec={bow:live.bow,draw:live.draw,sh:live.sh,head:live.head,lm:live.lm};
+  shots.push(rec);
+  shotSound(); flash();
+  $("timer").textContent=`تیر ${shots.length} ثبت شد ✓`;
+  addRow(shots.length,rec);
+  detectErrors();
+}
+function addRow(n,rec){
+  let dev="--";
+  if(calibration){ dev=((Math.abs(rec.bow-calibration.bow)+Math.abs(rec.draw-calibration.draw)+Math.abs(rec.sh-calibration.sh)+Math.abs(rec.head-calibration.head))/4).toFixed(1)+"°"; }
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td>${n}</td><td>${fmt(rec.bow)}</td><td>${fmt(rec.draw)}</td><td>${fmt(rec.sh)}</td><td>${fmt(rec.head)}</td><td>${dev}</td>`;
+  $("tbl").querySelector("tbody").appendChild(tr);
+}
+function flash(){
+  const f=$("shotFlash"); f.style.opacity=.85;
+  setTimeout(()=>f.style.opacity=0,120);
+}
+function finishSession(){
+  endSession(false);
+  $("timer").textContent="جلسه کامل شد ✅";
+  beep(1300,.15); setTimeout(()=>beep(1600,.2),180);
+  downloadCSV();
+}
+function endSession(done){
+  sessionOn=false; timers.forEach(clearTimeout); timers=[];
+  $("recBadge").style.display="none";
+  $("sessBtn").textContent="شروع جلسه (۶ تیر)"; $("sessBtn").classList.remove("danger");
+}
+</script>
 </body>
 </html>
