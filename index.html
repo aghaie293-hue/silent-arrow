@@ -1,61 +1,693 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#090d18"><title>پروژه سایلنت اررو | Silent Arrows</title>
-<style>
-:root{color-scheme:dark;--bg:#090d18;--panel:#111827;--line:#263349;--text:#edf3ff;--muted:#91a1ba;--teal:#48e0c1;--gold:#ffc86b;--red:#ff647c}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -15%,#19344b 0,transparent 48%),var(--bg);color:var(--text);font:15px/1.7 Tahoma,"Segoe UI",sans-serif;min-height:100vh}button,input,select{font:inherit}button{cursor:pointer;border:1px solid #35506a;color:var(--text);background:#1b2a3e;border-radius:12px;padding:10px 15px;font-weight:700;transition:.2s}button:hover{border-color:var(--teal);transform:translateY(-1px)}button:disabled{opacity:.45;cursor:not-allowed;transform:none}.primary{background:linear-gradient(120deg,#168e83,#176a73);border:0}.danger{background:#492431;border-color:#793348}.wrap{width:min(1180px,94vw);margin:auto;padding:28px 0 46px}.header{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:20px}.brand h1{font-size:clamp(21px,4vw,32px);margin:0}.brand p{margin:4px 0;color:var(--muted)}.badge{border:1px solid #2e665f;color:var(--teal);border-radius:999px;padding:5px 12px;font-size:12px}.grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(270px,.85fr);gap:18px}.card{background:linear-gradient(145deg,#141f30,#101725);border:1px solid var(--line);border-radius:19px;padding:18px;box-shadow:0 15px 45px #0003}.cam{position:relative;background:#030609;border-radius:14px;overflow:hidden;aspect-ratio:4/3;min-height:220px}.cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.cam video{transform:scaleX(-1)}.cam canvas{pointer-events:none}.cam .placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#8191a8;text-align:center;padding:20px}.topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px}.status{color:var(--muted);font-size:13px}.status:before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#68758a;margin-left:8px}.status.live:before{background:var(--teal);box-shadow:0 0 12px var(--teal)}.controls{display:flex;flex-wrap:wrap;gap:9px;margin-top:13px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{padding:12px;border:1px solid var(--line);border-radius:13px;background:#0c1421}.metric small{color:var(--muted);display:block}.metric strong{font-size:23px;direction:ltr;display:block}.unit{font-size:12px;color:var(--muted)}.section-title{font-size:17px;margin:0 0 12px}.side>*+*{margin-top:15px}.formrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 0;color:#cfdaea}.formrow input,.formrow select{width:100px;border:1px solid var(--line);border-radius:9px;padding:7px;background:#0c1421;color:var(--text)}.formrow select{width:125px}.session{display:flex;gap:9px;flex-wrap:wrap}.progress{height:7px;background:#222e41;border-radius:9px;margin:12px 0;overflow:hidden}.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--gold));transition:width .25s}.calnote,.hint{font-size:12px;color:var(--muted)}.overlay{position:fixed;inset:0;background:#050912d9;display:none;place-items:center;z-index:8}.overlay.show{display:grid}.countbox{width:min(360px,88vw);text-align:center;background:#111a2a;border:1px solid #3c536b;border-radius:24px;padding:24px}.count{font-size:100px;font-weight:900;line-height:1.25;color:var(--gold)}.flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:9}.flash.on{animation:flash .35s ease-out}@keyframes flash{0%{opacity:.8}100%{opacity:0}}dialog{background:#111a2a;border:1px solid var(--line);border-radius:16px;color:var(--text);width:min(720px,94vw);max-height:85vh}dialog::backdrop{background:#000b}.history-list{max-height:55vh;overflow:auto}.history-item{border-bottom:1px solid var(--line);padding:10px}.history-item small{color:var(--muted)}.gate{position:fixed;inset:0;background:#070b13;z-index:20;display:grid;place-items:center;padding:20px}.gatebox{max-width:440px;width:100%;text-align:center}.gate input{width:100%;padding:12px;background:#0c1421;color:white;border:1px solid var(--line);border-radius:10px;margin:12px 0}.hidden{display:none!important}footer{text-align:center;color:#6f7d93;font-size:12px;margin-top:18px}@media(max-width:800px){.grid{grid-template-columns:1fr}.header{align-items:flex-start;flex-direction:column}.card{padding:14px}}
-</style>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
-</head><body>
-<div id="gate" class="gate"><div class="gatebox"><div class="badge">SHA-256 GATE</div><h2>ورود امن</h2><p class="hint">برای بازکردن ابزار، عبارت دسترسی را وارد کنید. عبارت در مرورگر ذخیره نمی‌شود.</p><form id="gateForm"><input id="gateInput" type="password" autocomplete="current-password" placeholder="عبارت دسترسی" required><button class="primary" type="submit">تأیید و ورود</button></form><p id="gateError" class="hint" aria-live="polite"></p></div></div>
-<main class="wrap hidden" id="app"><header class="header"><div class="brand"><h1>پروژه سایلنت اررو <span style="color:var(--teal)">| Silent Arrows</span></h1><p>تحلیل زندهٔ وضعیت بدن و ثبت تمرین تیراندازی</p></div><span class="badge">حریم خصوصی: پردازش روی دستگاه</span></header>
-<div class="grid"><section class="card"><div class="topline"><h2 class="section-title">نمای زنده و اسکلت بدن</h2><span id="cameraStatus" class="status">دوربین خاموش</span></div><div class="cam"><video id="webcam" autoplay playsinline muted></video><canvas id="outputCanvas"></canvas><div id="placeholder" class="placeholder">برای آغاز تحلیل، دوربین را روشن کنید</div></div><div class="controls"><button id="cameraBtn" class="primary">روشن کردن دوربین</button><button id="switchCameraBtn">تعویض دوربین</button><button id="snapshotBtn">📷 ثبت تصویر</button><button id="calibrateBtn">کالیبره‌کردن وضعیت</button></div><p id="poseStatus" class="hint">برای دقت بهتر، تمام بالاتنه در تصویر باشد.</p></section>
-<aside class="side"><section class="card"><h2 class="section-title">شاخص‌های بیومکانیک</h2><div class="metrics"><div class="metric"><small>آرنج بازو (چپ)</small><strong id="bowLeft">—</strong><span class="unit">درجه</span></div><div class="metric"><small>آرنج بازو (راست)</small><strong id="drawRight">—</strong><span class="unit">درجه</span></div><div class="metric"><small>شیب شانه</small><strong id="shoulderTilt">—</strong><span class="unit">درجه</span></div><div class="metric"><small>شیب سر</small><strong id="headTilt">—</strong><span class="unit">درجه</span></div></div><p id="calibrationNote" class="calnote">کالیبراسیون شخصی انجام نشده است.</p></section>
-<section class="card"><h2 class="section-title">تنظیم جلسهٔ شش‌تیره</h2><label class="formrow"><span>تأخیر شروع</span><span><input id="initialDelay" type="number" min="0" max="60" value="3"> ثانیه</span></label><label class="formrow"><span>زمان هر تیر</span><span><input id="shotTime" type="number" min="2" max="120" value="10"> ثانیه</span></label><div class="session"><button id="beginSessionBtn" class="primary">شروع جلسهٔ ۶ تیر</button><button id="cancelSessionBtn" class="danger" disabled>لغو جلسه</button></div><div class="progress"><i id="progressBar"></i></div><div id="sessionStatus" class="hint">آمادهٔ شروع</div></section>
-<section class="card"><h2 class="section-title">گزارش و سابقه</h2><div class="controls"><button id="csvBtn">دانلود CSV</button><button id="excelBtn">دانلود Excel</button><button id="historyBtn">سابقهٔ جلسات</button></div></section></aside></div><footer>MediaPipe Pose · اطلاعات و تصاویر فقط با اقدام شما در دستگاه ذخیره می‌شوند.</footer></main>
-<div id="countOverlay" class="overlay" aria-live="assertive"><div class="countbox"><div id="countLabel">آماده</div><div id="countValue" class="count">۳</div><div id="shotLabel" class="hint"></div></div></div><div id="flash" class="flash"></div>
-<dialog id="historyDialog"><div class="topline"><h2 class="section-title">سابقهٔ جلسات</h2><button id="closeHistoryBtn">بستن</button></div><div id="historyList" class="history-list"></div></dialog>
-<script>
-'use strict';
-const GATE_HASH='5f64f5aa23cc4318a925608861b31455e409bee91daafde093c538897dae9241';
-const $=id=>document.getElementById(id), video=$('webcam'), canvas=$('outputCanvas'), ctx=canvas.getContext('2d');
-let stream=null, facing='user', pose=null, poseReady=false, busy=false, session=null, audioCtx=null, lastMetrics={bowLeft:null,drawRight:null,shoulderTilt:null,headTilt:null};
-const HISTORY_KEY='silentArrows.history.v1', CAL_KEY='silentArrows.calibration.v1';
-function safeRead(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch(_){return fallback}}
-async function sha256(text){const data=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(data)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-$('gateForm').addEventListener('submit',async e=>{e.preventDefault();try{if(await sha256($('gateInput').value)===GATE_HASH){$('gate').classList.add('hidden');$('app').classList.remove('hidden');$('gateError').textContent=''}else $('gateError').textContent='عبارت دسترسی معتبر نیست.'}catch(_){$('gateError').textContent='مرورگر امن (HTTPS) برای بررسی SHA-256 لازم است.'}});
-function angle(a,b,c){if(!a||!b||!c)return null;const v1={x:a.x-b.x,y:a.y-b.y},v2={x:c.x-b.x,y:c.y-b.y};const d=(v1.x*v2.x+v1.y*v2.y)/(Math.hypot(v1.x,v1.y)*Math.hypot(v2.x,v2.y));return Number.isFinite(d)?Math.acos(Math.max(-1,Math.min(1,d)))*180/Math.PI:null}
-function visible(p){return p&&((p.visibility??1)>.45)}
-function drawPose(result){ctx.clearRect(0,0,canvas.width,canvas.height);const lm=result.poseLandmarks;if(!lm)return;const links=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[0,7],[0,8]];ctx.lineWidth=Math.max(2,canvas.width/240);ctx.strokeStyle='#48e0c1';for(const [a,b] of links){if(visible(lm[a])&&visible(lm[b])){ctx.beginPath();ctx.moveTo(lm[a].x*canvas.width,lm[a].y*canvas.height);ctx.lineTo(lm[b].x*canvas.width,lm[b].y*canvas.height);ctx.stroke()}}ctx.fillStyle='#ffc86b';for(const p of lm)if(visible(p)){ctx.beginPath();ctx.arc(p.x*canvas.width,p.y*canvas.height,Math.max(3,canvas.width/150),0,Math.PI*2);ctx.fill()}}
-function updateMetrics(result){const p=result.poseLandmarks;if(!p)return;const get=i=>visible(p[i])?p[i]:null;lastMetrics={bowLeft:angle(get(11),get(13),get(15)),drawRight:angle(get(12),get(14),get(16)),shoulderTilt:null,headTilt:null};if(get(11)&&get(12))lastMetrics.shoulderTilt=Math.atan2((p[12].y-p[11].y),(p[12].x-p[11].x))*180/Math.PI;if(get(7)&&get(8))lastMetrics.headTilt=Math.atan2(p[8].y-p[7].y,p[8].x-p[7].x)*180/Math.PI;for(const [key,id] of [['bowLeft','bowLeft'],['drawRight','drawRight'],['shoulderTilt','shoulderTilt'],['headTilt','headTilt']])$(id).textContent=lastMetrics[key]===null?'—':lastMetrics[key].toFixed(1);const cal=safeRead(CAL_KEY,null);$('calibrationNote').textContent=cal?'کالیبراسیون ذخیره‌شده: '+new Date(cal.at).toLocaleString('fa-IR'):'کالیبراسیون شخصی انجام نشده است.'}
-async function processFrame(){if(!stream||!poseReady||busy)return; if(video.readyState>=2){busy=true;try{await pose.send({image:video})}catch(err){$('poseStatus').textContent='خطا در تحلیل تصویر: '+err.message}finally{busy=false}}if(stream)requestAnimationFrame(processFrame)}
-async function startCamera(){if(!navigator.mediaDevices?.getUserMedia){alert('مرورگر یا اتصال امن، دسترسی دوربین را پشتیبانی نمی‌کند.');return}stopCamera(false);try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{width:{ideal:640},height:{ideal:480},facingMode:{ideal:facing}}});video.srcObject=stream;await video.play();$('placeholder').classList.add('hidden');$('cameraStatus').classList.add('live');$('cameraStatus').textContent='دوربین فعال';$('cameraBtn').textContent='خاموش‌کردن دوربین';canvas.width=video.videoWidth||640;canvas.height=video.videoHeight||480;requestAnimationFrame(processFrame)}catch(err){stream=null;$('cameraStatus').textContent='دوربین در دسترس نیست';alert('دسترسی به دوربین ممکن نشد: '+err.message)}}
-function stopCamera(update=true){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}video.srcObject=null;if(update){$('placeholder').classList.remove('hidden');$('cameraStatus').classList.remove('live');$('cameraStatus').textContent='دوربین خاموش';$('cameraBtn').textContent='روشن کردن دوربین';ctx.clearRect(0,0,canvas.width,canvas.height)}}
-$('cameraBtn').addEventListener('click',()=>stream?stopCamera():startCamera());$('switchCameraBtn').addEventListener('click',async()=>{facing=facing==='user'?'environment':'user';if(stream)await startCamera()});
-function flash(){const f=$('flash');f.classList.remove('on');void f.offsetWidth;f.classList.add('on')}
-function downloadBlob(blob,name){const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
-function captureShot(shot,automatic=false){if(!stream||video.readyState<2){$('sessionStatus').textContent='دوربین فعال نیست؛ عکس این تیر ثبت نشد.';return null}const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;const x=c.getContext('2d');if(facing==='user'){x.translate(c.width,0);x.scale(-1,1)}x.drawImage(video,0,0,c.width,c.height);const stamp=new Date().toISOString().replace(/[:.]/g,'-');c.toBlob(blob=>{if(blob)downloadBlob(blob,`silent-arrows-${stamp}-shot-${shot||'manual'}.jpg`)},'image/jpeg',.92);flash();return {...lastMetrics,shot:shot||0,time:new Date().toISOString(),automatic}}
-$('snapshotBtn').addEventListener('click',()=>{const row=captureShot(0,false);if(row)$('sessionStatus').textContent='تصویر ثبت و دانلود شد.'});
-function playTone(freq,duration,at=0,type='sine',volume=.12){if(!audioCtx)return;const osc=audioCtx.createOscillator(),gain=audioCtx.createGain(),start=audioCtx.currentTime+at;osc.type=type;osc.frequency.setValueAtTime(freq,start);gain.gain.setValueAtTime(.001,start);gain.gain.exponentialRampToValueAtTime(volume,start+.015);gain.gain.exponentialRampToValueAtTime(.001,start+duration);osc.connect(gain);gain.connect(audioCtx.destination);osc.start(start);osc.stop(start+duration+.03)}
-function tick(){playTone(880,.09,0,'sine',.09)}function whistleThwack(){playTone(1250,.48,0,'sawtooth',.13);playTone(880,.36,.43,'sine',.11);playTone(110,.20,.78,'triangle',.24)}function fanfare(){[523,659,784,1047].forEach((n,i)=>playTone(n,.34,i*.16,'triangle',.12))}
-function ensureAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume()}
-function showCount(label,value,shot=''){$('countLabel').textContent=label;$('countValue').textContent=String(value);$('shotLabel').textContent=shot;$('countOverlay').classList.add('show')}
-function hideCount(){$('countOverlay').classList.remove('show')}
-function wait(ms){return new Promise(resolve=>{const id=setTimeout(resolve,ms);session.timers.push(id)})}
-function countdown(seconds,label,shot){return new Promise(resolve=>{let left=seconds;showCount(label,left,shot);tick();const step=()=>{if(!session||session.cancelled){resolve(false);return}if(left<=0){resolve(true);return}const id=setTimeout(()=>{if(!session||session.cancelled){resolve(false);return}left--;showCount(label,left,shot);if(left>0)tick();step()},1000);session.timers.push(id)};step()})}
-function recordRow(type,shot){return {type,shot,time:new Date().toISOString(),...lastMetrics}}
-function saveHistory(item){const h=safeRead(HISTORY_KEY,[]);h.unshift(item);localStorage.setItem(HISTORY_KEY,JSON.stringify(h.slice(0,100)))}
-async function beginSession(){if(session)return;ensureAudio();const delay=Math.max(0,Math.min(60,Number($('initialDelay').value)||0)),seconds=Math.max(2,Math.min(120,Number($('shotTime').value)||10));session={cancelled:false,timers:[],rows:[],started:new Date().toISOString()};$('beginSessionBtn').disabled=true;$('cancelSessionBtn').disabled=false;$('progressBar').style.width='0%';$('sessionStatus').textContent='جلسه در حال آماده‌سازی…';try{if(delay>0){const ok=await countdown(delay,'شروع در', 'آغاز جلسه');if(!ok)return}for(let shot=1;shot<=6;shot++){if(!session||session.cancelled)return;const ok=await countdown(seconds,`تیر ${shot} از ۶`,'پس از پایان شمارش، تصویر ثبت می‌شود');if(!ok)return;whistleThwack();const photo=captureShot(shot,true);session.rows.push({...recordRow('shot',shot),photo:!!photo});$('progressBar').style.width=`${shot/6*100}%`;$('sessionStatus').textContent=`تیر ${shot} از ۶ ثبت شد`;await wait(350)}if(session&&!session.cancelled)finishSession()}catch(err){$('sessionStatus').textContent='خطا در جلسه: '+err.message;cancelSession()}}
-function finishSession(){if(!session)return;hideCount();fanfare();const ended=new Date().toISOString();saveHistory({started:session.started,ended,status:'completed',shots:session.rows,settings:{initialDelay:Number($('initialDelay').value),shotTime:Number($('shotTime').value)}});$('sessionStatus').textContent='جلسهٔ شش‌تیره با موفقیت پایان یافت.';session=null;$('beginSessionBtn').disabled=false;$('cancelSessionBtn').disabled=true}
-function cancelSession(){if(!session)return;session.cancelled=true;session.timers.forEach(clearTimeout);const ended=new Date().toISOString();saveHistory({started:session.started,ended,status:'cancelled',shots:session.rows,settings:{initialDelay:Number($('initialDelay').value),shotTime:Number($('shotTime').value)}});session=null;hideCount();$('beginSessionBtn').disabled=false;$('cancelSessionBtn').disabled=true;$('sessionStatus').textContent='جلسه لغو شد؛ تیرهای انجام‌شده در سابقه محفوظ‌اند.'}
-$('beginSessionBtn').addEventListener('click',beginSession);$('cancelSessionBtn').addEventListener('click',cancelSession);
-$('calibrateBtn').addEventListener('click',()=>{const values={...lastMetrics,at:new Date().toISOString()};if(Object.values(lastMetrics).every(v=>v===null)){ $('poseStatus').textContent='برای کالیبراسیون ابتدا دوربین را روشن کرده و در کادر قرار بگیرید.';return}localStorage.setItem(CAL_KEY,JSON.stringify(values));$('calibrationNote').textContent='کالیبراسیون شخصی ذخیره شد: '+new Date(values.at).toLocaleString('fa-IR')});
-function rowsForExport(){const h=safeRead(HISTORY_KEY,[]),rows=[];h.forEach(s=>{(s.shots||[]).forEach(r=>rows.push({جلسه: s.started,وضعیت:s.status==='completed'?'کامل':'لغوشده',تیر:r.shot,زمان:r.time, 'آرنج چپ':r.bowLeft,'آرنج راست':r.drawRight,'شیب شانه':r.shoulderTilt,'شیب سر':r.headTilt}))});return rows}
-function csvCell(v){return '"'+String(v??'').replaceAll('"','""')+'"'}
-function exportReport(kind){const rows=rowsForExport(),headers=['جلسه','وضعیت','تیر','زمان','آرنج چپ','آرنج راست','شیب شانه','شیب سر'];let text;if(kind==='csv'){text='\ufeff'+[headers,...rows.map(r=>headers.map(h=>r[h]))].map(row=>row.map(csvCell).join(',')).join('\r\n');downloadBlob(new Blob([text],{type:'text/csv;charset=utf-8'}),'silent-arrows-report.csv')}else{const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');const table='<table><thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+headers.map(h=>'<td>'+esc(r[h])+'</td>').join('')+'</tr>').join('')+'</tbody></table>';downloadBlob(new Blob(['\ufeff',table],{type:'application/vnd.ms-excel;charset=utf-8'}),'silent-arrows-report.xls')}}
-$('csvBtn').addEventListener('click',()=>exportReport('csv'));$('excelBtn').addEventListener('click',()=>exportReport('excel'));
-$('historyBtn').addEventListener('click',()=>{const h=safeRead(HISTORY_KEY,[]);$('historyList').innerHTML=h.length?h.map(s=>`<div class="history-item"><b>${s.status==='completed'?'جلسهٔ کامل':'جلسهٔ لغوشده'}</b><br><small>${new Date(s.started).toLocaleString('fa-IR')} · ${(s.shots||[]).length} تیر</small></div>`).join(''):'<p class="hint">هنوز جلسه‌ای ثبت نشده است.</p>'; $('historyDialog').showModal()});$('closeHistoryBtn').addEventListener('click',()=>$('historyDialog').close());
-if(typeof window.Pose==='function'){pose=new Pose({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});pose.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.55,minTrackingConfidence:.55});pose.onResults(result=>{if(video.videoWidth&&canvas.width!==video.videoWidth){canvas.width=video.videoWidth;canvas.height=video.videoHeight}drawPose(result);updateMetrics(result);$('poseStatus').textContent=result.poseLandmarks?'بدن شناسایی شد؛ زوایا به‌صورت زنده محاسبه می‌شوند.':'بدنی شناسایی نشد؛ کمی جابه‌جا شوید.'});pose.initialize().then(()=>{poseReady=true}).catch(err=>{$('poseStatus').textContent='بارگذاری MediaPipe ناموفق بود: '+err.message})}else $('poseStatus').textContent='MediaPipe در دسترس نیست؛ اتصال اینترنت را بررسی کنید.';
-</script></body></html>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Silent Arrows | سامانه آنالیز بیومکانیک تیراندازی با کمان</title>
+    
+    <!-- کتابخانه‌های هوش مصنوعی MediaPipe Pose گوگل -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 10px;
+            background-color: #0d1117;
+            color: #e6edf3;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Tahoma, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* صفحه قفل اختصاصی */
+        #authOverlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #090d13;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .auth-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 24px;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+        .auth-card h3 { margin: 0 0 12px; color: #00e676; font-size: 1.15rem; }
+        .auth-input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+            background: #0d1117;
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+            outline: none;
+            margin-bottom: 12px;
+        }
+        .auth-btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: #00c853;
+            color: #fff;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        #authError { color: #ff5252; margin-top: 10px; font-size: 13px; }
+
+        h2 { margin: 8px 0 10px; font-size: 1.1rem; color: #58a6ff; text-align: center; }
+        
+        .camera-container {
+            position: relative;
+            width: 96vw;
+            max-width: 640px;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #30363d;
+        }
+        video { display: none; }
+        canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #loadingStatus {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: #00e676;
+            font-size: 13px;
+            display: none;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .dashboard {
+            width: 96vw;
+            max-width: 640px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .metric-box {
+            background: #0d1117;
+            padding: 8px;
+            border-radius: 6px;
+            border-right: 3px solid #00c853;
+        }
+        .metric-val { font-weight: bold; color: #00e676; }
+
+        .calib-status {
+            width: 96vw;
+            max-width: 640px;
+            background: #0d1117;
+            border: 1px dashed #30363d;
+            border-radius: 8px;
+            margin-top: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #8b949e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 640px;
+        }
+        .btn {
+            color: #fff;
+            border: none;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-green { background-color: #00c853; }
+        .btn-blue { background-color: #2196f3; }
+        .btn-orange { background-color: #ff9800; }
+        .btn-purple { background-color: #9c27b0; }
+        .btn-teal { background-color: #009688; }
+        .btn:active { opacity: 0.85; }
+
+        #logCounter {
+            font-size: 12px;
+            color: #8b949e;
+            margin-top: 6px;
+        }
+        .calib-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:50; align-items:center; justify-content:center; padding:10px; }
+        .calib-modal.open { display:flex; }
+        .calib-box { background:#1e1e1e; border:1px solid #009688; border-radius:10px; padding:16px; width:100%; max-width:420px; max-height:92vh; overflow:auto; color:#eee; }
+        .calib-box h3 { margin:0 0 8px; color:#4db6ac; }
+        .calib-box .row { display:flex; justify-content:space-between; align-items:center; margin:6px 0; font-size:13px; gap:8px; }
+        .calib-box input { width:80px; padding:5px; background:#111; color:#fff; border:1px solid #555; border-radius:4px; text-align:center; }
+        .calib-box .hint { font-size:11px; color:#aaa; margin:4px 0 8px; line-height:1.7; }
+        #calibMsg { font-size:12px; min-height:18px; margin:8px 0; color:#ffb74d; }
+    </style>
+</head>
+<body>
+
+    <!-- صفحه ورود امنیتی -->
+    <div id="authOverlay">
+        <div class="auth-card">
+            <h3>🏹 Silent Arrows</h3>
+            <p style="font-size: 12px; color: #8b949e; margin-bottom: 14px;">احراز هویت اختصاصی</p>
+            <input type="password" id="passInput" class="auth-input" placeholder="رمز عبور..." autocomplete="off">
+            <button class="auth-btn" onclick="checkAccess()">ورود</button>
+            <div id="authError"></div>
+        </div>
+    </div>
+
+    <h2>Silent Arrows | سامانه آنالیز بیومکانیک</h2>
+    
+    <div class="camera-container">
+        <video id="webcam" playsinline></video>
+        <canvas id="output_canvas"></canvas>
+        <div id="loadingStatus">در حال راه‌اندازی مدل بیومکانیک... لطفاً صبر کنید</div>
+    </div>
+
+    <!-- وضعیت کالیبراسیون شخصی -->
+    <div class="calib-status">
+        <span>وضعیت کالیبراسیون: <strong id="calibLabel" style="color: #ff9800;">تنظیم پیش‌فرض</strong></span>
+        <button onclick="resetCalibration()" style="background:none; border:none; color:#ff5252; cursor:pointer; font-size:11px;">[بازنشانی]</button>
+    </div>
+
+    <!-- داشبورد زنده زوایا -->
+    <div class="dashboard">
+        <div class="metric-box">زاویه آرنج کشش: <span id="drawElbowVal" class="metric-val">--</span></div>
+        <div class="metric-box">زاویه دست کمان: <span id="bowArmVal" class="metric-val">--</span></div>
+        <div class="metric-box">ثبات سر: <span id="headStabilityVal" class="metric-val">--</span></div>
+        <div class="metric-box">تراز شانه: <span id="shoulderAlignVal" class="metric-val">--</span></div>
+    </div>
+
+    <!-- دکمه‌های کنترل و عملیات -->
+    <div class="controls">
+        <button id="startBtn" class="btn btn-green" onclick="initSystem()">▶ روشن کردن دوربین</button>
+        <button id="flipBtn" class="btn btn-blue" style="display:none;" onclick="toggleCamera()">🔄 تغییر دوربین</button>
+        <button id="calibBtn" class="btn btn-teal" onclick="openCalibDialog()">🎯 کالیبراسیون</button>
+        <button id="snapBtn" class="btn btn-purple" style="display:none;" onclick="takeSnapshot()">📸 ثبت عکس (Snapshot)</button>
+        <button id="logBtn" class="btn btn-orange" style="display:none;" onclick="logCurrentShot()">🏹 ثبت تیر</button>
+        <button id="exportBtn" class="btn btn-green" style="display:none;" onclick="exportToCSV()">📥 خروجی اکسل (CSV)</button>
+    </div>
+
+    <div id="logCounter">تعداد تیرهای ثبت‌شده در این جلسه: <span id="shotCount" style="color:#00e676; font-weight:bold;">۰</span></div>
+
+    <!-- پنجرهٔ کالیبراسیون -->
+    <div id="calibModal" class="calib-modal">
+        <div class="calib-box">
+            <h3>🎯 کالیبراسیون شخصی</h3>
+            <div class="hint">روش اول: در حالت کشش کامل (قبل از رها کردن) بایستید و «ثبت از دوربین» را بزنید. بعد از ۳ ثانیه آماده‌باش، میانگین چند فریم گرفته می‌شود و اعداد پایین پر می‌شوند. روش دوم: اعداد را دستی وارد کنید. در هر دو حالت می‌توانید اعداد را قبل از ذخیره ویرایش کنید.</div>
+            <button id="calibCaptureBtn" class="btn btn-blue" style="width:100%;" onclick="captureCalibration()">📷 ثبت از دوربین (در کشش کامل)</button>
+            <div id="calibMsg"></div>
+            <div class="row"><span>زاویه آرنج کشش (°)</span><input id="cfgElbow" type="number" step="1" min="0" max="180"></div>
+            <div class="row"><span>تلورانس آرنج (±°)</span><input id="cfgTolElbow" type="number" step="1" min="1" max="30"></div>
+            <div class="row"><span>زاویه دست کمان (°)</span><input id="cfgBowArm" type="number" step="1" min="90" max="180"></div>
+            <div class="row"><span>تلورانس دست کمان (±°)</span><input id="cfgTolBow" type="number" step="1" min="1" max="30"></div>
+            <div class="row"><span>حداکثر کجی سر (°)</span><input id="cfgHead" type="number" step="1" min="1" max="15"></div>
+            <div class="row"><span>حداکثر شیب شانه (°)</span><input id="cfgShoulder" type="number" step="1" min="1" max="15"></div>
+            <div class="controls" style="margin-top:10px;">
+                <button class="btn btn-green" onclick="saveCalibrationForm()">💾 ذخیره</button>
+                <button class="btn btn-blue" onclick="closeCalibDialog()">بستن</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // احراز هویت هش‌شده
+        const SECURE_HASH = "5f64f5aa23cc4318a925608861b31455e409bee91daafde093c538897dae9241";
+
+        async function sha256(str) {
+            const buffer = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function checkAccess() {
+            const inputVal = document.getElementById('passInput').value;
+            const inputHash = await sha256(inputVal);
+            if (inputHash === SECURE_HASH) {
+                localStorage.setItem("sa_auth_token", "authorized_user");
+                document.getElementById('authOverlay').style.display = 'none';
+            } else {
+                document.getElementById('authError').innerText = "رمز عبور نادرست است!";
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem("sa_auth_token") === "authorized_user") {
+                document.getElementById('authOverlay').style.display = 'none';
+            }
+            document.getElementById('passInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') checkAccess();
+            });
+            loadPersonalCalibration();
+        });
+
+        // سیستم بیومکانیک و کالیبراسیون
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const loadingStatus = document.getElementById('loadingStatus');
+
+        let poseDetector = null;
+        let camera = null;
+        let currentFacingMode = "user";
+
+        let sessionLogs = [];
+        let currentMetrics = {
+            drawElbow: 0,
+            bowArm: 0,
+            headTilt: 0,
+            shoulderSlope: 0,
+            headStatus: "--",
+            shoulderStatus: "--"
+        };
+
+        // مقادیر کالیبراسیون آناتومی شخصی
+        let personalProfile = {
+            drawElbowTarget: 45,
+            bowArmTarget: 175,
+            headTiltMax: 4,
+            shoulderSlopeMax: 4,
+            toleranceElbow: 10,
+            toleranceBowArm: 6,
+            isCustom: false,
+            version: 2
+        };
+
+        function loadPersonalCalibration() {
+            const saved = localStorage.getItem("sa_personal_profile");
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.version !== 2) { localStorage.removeItem("sa_personal_profile"); return; } // واحدهای قدیمی (درصد)
+                    personalProfile = parsed;
+                    document.getElementById('calibLabel').innerText = `اختصاصی (آرنج: ${personalProfile.drawElbowTarget}° / دست: ${personalProfile.bowArmTarget}°)`;
+                    document.getElementById('calibLabel').style.color = '#00e676';
+                } catch(e) {}
+            }
+        }
+
+        const $ = id => document.getElementById(id);
+        let calibBusy = false;
+
+        function applyCalibLabel() {
+            $('calibLabel').innerText = `اختصاصی (آرنج: ${personalProfile.drawElbowTarget}° / دست: ${personalProfile.bowArmTarget}°)`;
+            $('calibLabel').style.color = '#00e676';
+        }
+
+        function fillCalibForm(p) {
+            $('cfgElbow').value = p.drawElbowTarget;
+            $('cfgTolElbow').value = p.toleranceElbow;
+            $('cfgBowArm').value = p.bowArmTarget;
+            $('cfgTolBow').value = p.toleranceBowArm;
+            $('cfgHead').value = p.headTiltMax;
+            $('cfgShoulder').value = p.shoulderSlopeMax;
+        }
+
+        function openCalibDialog() {
+            fillCalibForm(personalProfile);
+            $('calibMsg').innerText = '';
+            $('calibModal').classList.add('open');
+        }
+
+        function closeCalibDialog() {
+            if (calibBusy) return;
+            $('calibModal').classList.remove('open');
+        }
+
+        const median = arr => { const a = [...arr].sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; };
+
+        // ثبت از دوربین: ۳ ثانیه آماده‌باش، سپس ۳۰ نمونه در ~۳ ثانیه؛ میانه‌ی نمونه‌ها استفاده می‌شود
+        async function captureCalibration() {
+            if (calibBusy) return;
+            if (!currentMetrics || currentMetrics.drawElbow === 0) {
+                $('calibMsg').innerText = 'بدنی شناسایی نشده است. دوربین را روشن کنید و کامل در کادر بایستید.';
+                return;
+            }
+            calibBusy = true;
+            const btn = $('calibCaptureBtn');
+            btn.disabled = true;
+            for (let i = 3; i > 0; i--) {
+                $('calibMsg').innerText = `آماده شوید و در کشش کامل ثابت بمانید... ${i}`;
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            const S = { elbow: [], bow: [], head: [], shoulder: [] };
+            let tries = 0;
+            while (S.elbow.length < 30 && tries++ < 60) {
+                $('calibMsg').innerText = `در حال ثبت... ${S.elbow.length}/30 (ثابت بمانید)`;
+                const m = currentMetrics;
+                if (m && m.drawElbow !== 0) {
+                    S.elbow.push(m.drawElbow); S.bow.push(m.bowArm);
+                    S.head.push(m.headTilt); S.shoulder.push(m.shoulderSlope);
+                }
+                await new Promise(r => setTimeout(r, 100));
+            }
+            calibBusy = false;
+            btn.disabled = false;
+
+            if (S.elbow.length < 20) {
+                $('calibMsg').innerText = 'بدن در حین ثبت بارها از کادر خارج شد. دوباره تلاش کنید.';
+                return;
+            }
+            const spread = Math.max(...S.elbow) - Math.min(...S.elbow);
+            const spreadBow = Math.max(...S.bow) - Math.min(...S.bow);
+            if (spread > 15 || spreadBow > 15) {
+                $('calibMsg').innerText = `حرکت زیاد بود (نوسان آرنج ${spread}°، دست کمان ${spreadBow}°). در حالت ثابت دوباره ثبت کنید. اعداد تغییر نکردند.`;
+                return;
+            }
+            const head = median(S.head), shoulder = median(S.shoulder);
+            fillCalibForm({
+                drawElbowTarget: median(S.elbow),
+                bowArmTarget: median(S.bow),
+                toleranceElbow: Math.max(6, Math.ceil(spread / 2) + 4),
+                toleranceBowArm: Math.max(6, Math.ceil(spreadBow / 2) + 4),
+                headTiltMax: Math.min(6, Math.max(4, head + 1)),
+                shoulderSlopeMax: Math.min(6, Math.max(4, shoulder + 1))
+            });
+            let msg = `ثبت شد (${S.elbow.length} نمونه). اعداد را بررسی و «ذخیره» را بزنید.`;
+            if (head > 5 || shoulder > 5) msg += ` هشدار: کجی سر (${head}°) یا شانه (${shoulder}°) در این کشش زیاد بود؛ حد مجاز به ۶° محدود شد تا فرم بد معیار نشود.`;
+            $('calibMsg').innerText = msg;
+        }
+
+        function saveCalibrationForm() {
+            const spec = [
+                ['cfgElbow', 'drawElbowTarget', 0, 180],
+                ['cfgTolElbow', 'toleranceElbow', 1, 30],
+                ['cfgBowArm', 'bowArmTarget', 90, 180],
+                ['cfgTolBow', 'toleranceBowArm', 1, 30],
+                ['cfgHead', 'headTiltMax', 1, 15],
+                ['cfgShoulder', 'shoulderSlopeMax', 1, 15]
+            ];
+            const next = { ...personalProfile };
+            for (const [id, key, lo, hi] of spec) {
+                const v = Number($(id).value);
+                if ($(id).value === '' || !Number.isFinite(v) || v < lo || v > hi) {
+                    $('calibMsg').innerText = `مقدار نامعتبر: ${$(id).previousElementSibling.innerText} (بازه مجاز ${lo} تا ${hi})`;
+                    return;
+                }
+                next[key] = Math.round(v);
+            }
+            next.isCustom = true;
+            next.version = 2;
+            personalProfile = next;
+            localStorage.setItem("sa_personal_profile", JSON.stringify(personalProfile));
+            applyCalibLabel();
+            $('calibMsg').innerText = '';
+            calibBusy = false;
+            $('calibModal').classList.remove('open');
+        }
+
+        function resetCalibration() {
+            localStorage.removeItem("sa_personal_profile");
+            personalProfile = {
+                drawElbowTarget: 45,
+                bowArmTarget: 175,
+                headTiltMax: 4,
+                shoulderSlopeMax: 4,
+                toleranceElbow: 10,
+                toleranceBowArm: 6,
+                isCustom: false,
+                version: 2
+            };
+            document.getElementById('calibLabel').innerText = "تنظیم پیش‌فرض";
+            document.getElementById('calibLabel').style.color = '#ff9800';
+            alert("کالیبراسیون به حالت پیش‌فرض بازگشت.");
+        }
+
+        // مختصات نرمال‌شده (۰ تا ۱) روی x و y مقیاس متفاوت دارند؛ قبل از زاویه به پیکسل تبدیل می‌شوند
+        function calculateAngle(A, B, C) {
+            const W = canvasElement.width, H = canvasElement.height;
+            const radians = Math.atan2((C.y - B.y) * H, (C.x - B.x) * W) - Math.atan2((A.y - B.y) * H, (A.x - B.x) * W);
+            let angle = Math.abs(radians * 180.0 / Math.PI);
+            if (angle > 180.0) angle = 360 - angle;
+            return Math.round(angle);
+        }
+
+        // شیب خط بین دو نقطه نسبت به افق، به درجه (در فضای پیکسل)
+        function lineTiltDeg(P, Q) {
+            const W = canvasElement.width, H = canvasElement.height;
+            let d = Math.atan2((Q.y - P.y) * H, (Q.x - P.x) * W) * 180 / Math.PI;
+            if (d > 90) d -= 180;
+            if (d < -90) d += 180;
+            return Math.abs(Math.round(d));
+        }
+
+        // سیستم تحلیل عیب‌یابی و تمرین اصلاحی
+        function diagnoseAndRecommend(metrics, profile) {
+            const drawDiff = Math.abs(metrics.drawElbow - profile.drawElbowTarget);
+            const bowDiff = Math.abs(metrics.bowArm - profile.bowArmTarget);
+
+            let diagnosis = "ایده‌آل (Optimal)";
+            let drill = "فرم در دامنه استاندارد است؛ ادامه شلیک بدون تغییر";
+            let priority = "سبک";
+
+            if (metrics.headTilt > profile.headTiltMax) {
+                diagnosis = "انحراف و ناپایداری سر در انکر";
+                drill = "تمرین ثبات سر مقابل آینه با کش تمرینی (CLBWH)، ۳ ست ۳۰ ثانیه نگهداشت انکر بدون رهایی";
+                priority = "بالا";
+            } else if (metrics.shoulderSlope > profile.shoulderSlopeMax) {
+                diagnosis = "بالا آمدن شانه یا عدم تقارن ترقوه";
+                drill = "تمرین فعال‌سازی رومبوئید و پایین‌آوردن کتف (Scapular Depression) با کش سبک، ۳ ست ۱۲ تکرار";
+                priority = "بالا";
+            } else if (drawDiff > profile.toleranceElbow) {
+                diagnosis = `انحراف آرنج کشش (${drawDiff}° اختلاف)`;
+                drill = "تمرین چرخش به خط نیرو و امتداد خط دراو با کش، ۳ ست ۱۰ تکرار با تمرکز بر آرنج پشتی";
+                priority = "متوسط";
+            } else if (bowDiff > profile.toleranceBowArm) {
+                diagnosis = `افت زاویه دست کمان (${bowDiff}° اختلاف)`;
+                drill = "تمرین هل دادن به سمت هدف (Push-Pull Balance) و قفل نرم مفصل دست کمان، ۳ ست ۲۰ ثانیه";
+                priority = "متوسط";
+            }
+
+            return { diagnosis, drill, priority, drawDiff, bowDiff };
+        }
+
+        function onResults(results) {
+            loadingStatus.style.display = 'none';
+
+            // اندازه canvas دقیقاً برابر اندازه واقعی فریم دوربین (جلوگیری از کشیدگی و عدم انطباق)
+            const imgW = results.image.videoWidth || results.image.width;
+            const imgH = results.image.videoHeight || results.image.height;
+            if (imgW && imgH && (canvasElement.width !== imgW || canvasElement.height !== imgH)) {
+                canvasElement.width = imgW;
+                canvasElement.height = imgH;
+                document.querySelector('.camera-container').style.aspectRatio = `${imgW} / ${imgH}`;
+            }
+            const W = canvasElement.width, H = canvasElement.height;
+            const mirrored = (currentFacingMode === "user");
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, W, H);
+            // آینه‌سازی فقط برای دوربین جلو؛ تصویر و اسکلت با هم آینه می‌شوند
+            if (mirrored) { canvasCtx.translate(W, 0); canvasCtx.scale(-1, 1); }
+            canvasCtx.drawImage(results.image, 0, 0, W, H);
+
+            if (results.poseLandmarks) {
+                drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00e676', lineWidth: 3});
+                drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#ff5252', lineWidth: 1, radius: 4});
+                canvasCtx.setTransform(1, 0, 0, 1, 0, 0); // متن‌ها آینه نشوند
+
+                const lm = results.poseLandmarks;
+
+                // گام ۱: اگر اندام‌های کلیدی خارج از کادر یا نامطمئن باشند، زاویه ثبت نمی‌شود
+                const keyIdx = [7, 8, 11, 12, 13, 14, 15, 16];
+                const visOK = keyIdx.every(i => (lm[i].visibility ?? 1) >= 0.6);
+                if (!visOK) {
+                    document.getElementById('headStabilityVal').innerText = 'خارج از کادر';
+                    document.getElementById('shoulderAlignVal').innerText = 'خارج از کادر';
+                    currentMetrics = null;
+                    canvasCtx.restore();
+                    return;
+                }
+
+                const rightElbowAngle = calculateAngle(lm[12], lm[14], lm[16]);
+                const leftElbowAngle = calculateAngle(lm[11], lm[13], lm[15]);
+
+                const leftEar = lm[7];
+                const rightEar = lm[8];
+                const headTilt = lineTiltDeg(leftEar, rightEar);
+                const shoulderSlope = lineTiltDeg(lm[11], lm[12]);
+
+                const headStatus = (headTilt <= personalProfile.headTiltMax) ? "پایدار" : "انحراف سر";
+                const shoulderStatus = (shoulderSlope <= personalProfile.shoulderSlopeMax) ? "تراز" : "عدم تقارن";
+
+                currentMetrics = {
+                    drawElbow: rightElbowAngle,
+                    bowArm: leftElbowAngle,
+                    headTilt: headTilt,
+                    shoulderSlope: shoulderSlope,
+                    headStatus: headStatus,
+                    shoulderStatus: shoulderStatus
+                };
+
+                document.getElementById('drawElbowVal').innerText = rightElbowAngle + '°';
+                document.getElementById('bowArmVal').innerText = leftElbowAngle + '°';
+                document.getElementById('headStabilityVal').innerText = headStatus;
+                document.getElementById('shoulderAlignVal').innerText = shoulderStatus;
+
+                // نمایش زنده روی تصویر
+                canvasCtx.fillStyle = "#ffff00";
+                canvasCtx.font = "bold 18px Arial";
+                const px = (l) => (mirrored ? 1 - l.x : l.x) * W + 10;
+                canvasCtx.fillText(rightElbowAngle + "°", px(lm[14]), lm[14].y * H);
+                canvasCtx.fillText(leftElbowAngle + "°", px(lm[13]), lm[13].y * H);
+            }
+            canvasCtx.restore();
+        }
+
+        async function initSystem() {
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('flipBtn').style.display = 'inline-block';
+            document.getElementById('calibBtn').style.display = 'inline-block';
+            document.getElementById('snapBtn').style.display = 'inline-block';
+            document.getElementById('logBtn').style.display = 'inline-block';
+            document.getElementById('exportBtn').style.display = 'inline-block';
+            loadingStatus.style.display = 'block';
+
+            // گام ۱: اندازه canvas قبل از شروع دوربین تنظیم می‌شود
+            canvasElement.width = 640;
+            canvasElement.height = 480;
+            document.querySelector('.camera-container').style.aspectRatio = '4 / 3';
+
+            // گام ۱: Pose فقط یک‌بار ساخته می‌شود (جلوگیری از نشت حافظه/WebGL)
+            if (!poseDetector) {
+                poseDetector = new Pose({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
+                });
+                poseDetector.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                poseDetector.onResults(onResults);
+            }
+
+            if (camera) { await camera.stop(); camera = null; }
+
+            camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await poseDetector.send({image: videoElement});
+                },
+                width: 640,
+                height: 480,
+                facingMode: currentFacingMode
+            });
+
+            await camera.start();
+            loadingStatus.style.display = 'none';
+        }
+
+        async function toggleCamera() {
+            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+            await initSystem();
+        }
+
+        function takeSnapshot() {
+            const link = document.createElement('a');
+            const now = new Date().toISOString().replace(/[:.]/g, "-");
+            link.download = `SilentArrows_Snapshot_${now}.png`;
+            link.href = canvasElement.toDataURL("image/png");
+            link.click();
+        }
+
+        function logCurrentShot() {
+            if (currentMetrics.drawElbow === 0) {
+                alert("بدنی در کادر شناسایی نشده است.");
+                return;
+            }
+
+            const shotNumber = sessionLogs.length + 1;
+            const timeStr = new Date().toLocaleTimeString('fa-IR');
+            const analysis = diagnoseAndRecommend(currentMetrics, personalProfile);
+
+            sessionLogs.push({
+                shot: shotNumber,
+                time: timeStr,
+                drawElbow: currentMetrics.drawElbow,
+                drawTarget: personalProfile.drawElbowTarget,
+                drawDiff: analysis.drawDiff,
+                bowArm: currentMetrics.bowArm,
+                bowTarget: personalProfile.bowArmTarget,
+                bowDiff: analysis.bowDiff,
+                headTilt: currentMetrics.headTilt,
+                headStatus: currentMetrics.headStatus,
+                shoulderSlope: currentMetrics.shoulderSlope,
+                shoulderStatus: currentMetrics.shoulderStatus,
+                diagnosis: analysis.diagnosis,
+                drill: analysis.drill,
+                priority: analysis.priority
+            });
+
+            document.getElementById('shotCount').innerText = shotNumber;
+            alert(`تیر شماره ${shotNumber} ثبت شد.\nتشخیص: ${analysis.diagnosis}\nاولویت: ${analysis.priority}`);
+        }
+
+        function exportToCSV() {
+            if (sessionLogs.length === 0) {
+                alert("هنوز هیچ تیری ثبت نشده است! ابتدا دکمه «ثبت تیر» را بزنید.");
+                return;
+            }
+
+            let csvContent = "\uFEFF"; // کدگذاری BOM برای سازگاری کامل زبان فارسی در Excel
+            csvContent += "شماره تیر,زمان ثبت,زاویه آرنج کشش,هدف شخصی آرنج,انحراف از هدف,زاویه دست کمان,هدف شخصی دست کمان,انحراف از هدف,شاخص انحراف سر,وضعیت سر,شاخص شیب شانه,وضعیت شانه,تشخیص اصلی خطا,تمرین اصلاحی پیشنهادی,سطح اولویت\n";
+
+            sessionLogs.forEach(row => {
+                // پاک‌سازی کاما جهت حفظ ساختار ستون‌های CSV
+                const cleanDiagnosis = `"${row.diagnosis.replace(/"/g, '""')}"`;
+                const cleanDrill = `"${row.drill.replace(/"/g, '""')}"`;
+
+                csvContent += `${row.shot},${row.time},${row.drawElbow},${row.drawTarget},${row.drawDiff},${row.bowArm},${row.bowTarget},${row.bowDiff},${row.headTilt},${row.headStatus},${row.shoulderSlope},${row.shoulderStatus},${cleanDiagnosis},${cleanDrill},${row.priority}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const dateStr = new Date().toISOString().slice(0, 10);
+            link.href = URL.createObjectURL(blob);
+            link.download = `SilentArrows_Analysis_${dateStr}.csv`;
+            link.click();
+        }
+    </script>
+</body>
+</html>
