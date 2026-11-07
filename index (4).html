@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Silent Arrows | سامانه آنالیز بیومکانیک تیراندازی با کمان</title>
+    
+    <!-- کتابخانه‌های هوش مصنوعی MediaPipe Pose گوگل -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 10px;
+            background-color: #0d1117;
+            color: #e6edf3;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Tahoma, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* صفحه قفل اختصاصی */
+        #authOverlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #090d13;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .auth-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 24px;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+        .auth-card h3 { margin: 0 0 12px; color: #00e676; font-size: 1.15rem; }
+        .auth-input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+            background: #0d1117;
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+            outline: none;
+            margin-bottom: 12px;
+        }
+        .auth-btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: #00c853;
+            color: #fff;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        #authError { color: #ff5252; margin-top: 10px; font-size: 13px; }
+
+        h2 { margin: 8px 0 10px; font-size: 1.1rem; color: #58a6ff; text-align: center; }
+        
+        .camera-container {
+            position: relative;
+            width: 96vw;
+            max-width: 640px;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #30363d;
+        }
+        video { display: none; }
+        canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #loadingStatus {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: #00e676;
+            font-size: 13px;
+            display: none;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .dashboard {
+            width: 96vw;
+            max-width: 640px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .metric-box {
+            background: #0d1117;
+            padding: 8px;
+            border-radius: 6px;
+            border-right: 3px solid #00c853;
+        }
+        .metric-val { font-weight: bold; color: #00e676; }
+
+        .calib-status {
+            width: 96vw;
+            max-width: 640px;
+            background: #0d1117;
+            border: 1px dashed #30363d;
+            border-radius: 8px;
+            margin-top: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #8b949e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 640px;
+        }
+        .btn {
+            color: #fff;
+            border: none;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-green { background-color: #00c853; }
+        .btn-blue { background-color: #2196f3; }
+        .btn-orange { background-color: #ff9800; }
+        .btn-purple { background-color: #9c27b0; }
+        .btn-teal { background-color: #009688; }
+        .btn:active { opacity: 0.85; }
+
+        #logCounter {
+            font-size: 12px;
+            color: #8b949e;
+            margin-top: 6px;
+        }
+        .calib-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:50; align-items:center; justify-content:center; padding:10px; }
+        .calib-modal.open { display:flex; }
+        .calib-box { background:#1e1e1e; border:1px solid #009688; border-radius:10px; padding:16px; width:100%; max-width:420px; max-height:92vh; overflow:auto; color:#eee; }
+        .calib-box h3 { margin:0 0 8px; color:#4db6ac; }
+        .calib-box .row { display:flex; justify-content:space-between; align-items:center; margin:6px 0; font-size:13px; gap:8px; }
+        .calib-box input { width:80px; padding:5px; background:#111; color:#fff; border:1px solid #555; border-radius:4px; text-align:center; }
+        .calib-box .hint { font-size:11px; color:#aaa; margin:4px 0 8px; line-height:1.7; }
+        #calibMsg { font-size:12px; min-height:18px; margin:8px 0; color:#ffb74d; }
+
+        .err-panel { width:100%; max-width:640px; margin-top:12px; background:#161b22; border:1px solid #30363d; border-radius:10px; padding:12px; display:none; }
+        .err-panel h3 { margin:0 0 8px; color:#00e676; font-size:15px; }
+        .err-row { margin:6px 0; font-size:13px; }
+        .err-item { border-right:4px solid #8b949e; background:#0d1117; border-radius:6px; padding:8px 10px; margin:8px 0; font-size:12.5px; line-height:1.8; }
+        .err-item.hit { border-color:#ff5252; } .err-item.cand { border-color:#ff9800; }
+        .err-item b { color:#4db6ac; } .err-tag { font-size:11px; color:#aaa; }
+        .err-panel select { background:#0d1117; color:#fff; border:1px solid #30363d; border-radius:6px; padding:5px; }
+    </style>
+</head>
+<body>
+
+    <!-- صفحه ورود امنیتی -->
+    <div id="authOverlay">
+        <div class="auth-card">
+            <h3>🏹 Silent Arrows</h3>
+            <p style="font-size: 12px; color: #8b949e; margin-bottom: 14px;">احراز هویت اختصاصی</p>
+            <input type="password" id="passInput" class="auth-input" placeholder="رمز عبور..." autocomplete="off">
+            <button class="auth-btn" onclick="checkAccess()">ورود</button>
+            <div id="authError"></div>
+        </div>
+    </div>
+
+    <h2>Silent Arrows | سامانه آنالیز بیومکانیک</h2>
+    
+    <div class="camera-container">
+        <video id="webcam" playsinline></video>
+        <canvas id="output_canvas"></canvas>
+        <div id="loadingStatus">در حال راه‌اندازی مدل بیومکانیک... لطفاً صبر کنید</div>
+    </div>
+
+    <!-- وضعیت کالیبراسیون شخصی -->
+    <div class="calib-status">
+        <span>وضعیت کالیبراسیون: <strong id="calibLabel" style="color: #ff9800;">تنظیم پیش‌فرض</strong></span>
+        <button onclick="resetCalibration()" style="background:none; border:none; color:#ff5252; cursor:pointer; font-size:11px;">[بازنشانی]</button>
+    </div>
+
+    <!-- داشبورد زنده زوایا -->
+    <div class="dashboard">
+        <div class="metric-box">زاویه آرنج کشش: <span id="drawElbowVal" class="metric-val">--</span></div>
+        <div class="metric-box">زاویه دست کمان: <span id="bowArmVal" class="metric-val">--</span></div>
+        <div class="metric-box">ثبات سر: <span id="headStabilityVal" class="metric-val">--</span></div>
+        <div class="metric-box">تراز شانه: <span id="shoulderAlignVal" class="metric-val">--</span></div>
+    </div>
+
+    <!-- دکمه‌های کنترل و عملیات -->
+    <div class="controls">
+        <button id="startBtn" class="btn btn-green" onclick="initSystem()">▶ روشن کردن دوربین</button>
+        <button id="flipBtn" class="btn btn-blue" style="display:none;" onclick="toggleCamera()">🔄 تغییر دوربین</button>
+        <button id="calibBtn" class="btn btn-teal" onclick="openCalibDialog()">🎯 کالیبراسیون</button>
+        <button id="snapBtn" class="btn btn-purple" style="display:none;" onclick="takeSnapshot()">📸 ثبت عکس (Snapshot)</button>
+        <button id="logBtn" class="btn btn-orange" style="display:none;" onclick="logCurrentShot()">🏹 ثبت تیر</button>
+        <button id="exportBtn" class="btn btn-green" style="display:none;" onclick="exportToCSV()">📥 خروجی اکسل (CSV)</button>
+    </div>
+
+    <div id="logCounter">تعداد تیرهای ثبت‌شده در این جلسه: <span id="shotCount" style="color:#00e676; font-weight:bold;">۰</span></div>
+
+    <div id="errPanel" class="err-panel" style="display:block">
+        <h3>🔎 خطاهای محتمل از پایگاه دانش</h3>
+        <div class="err-row">فاز شلیک: <select id="phaseSel" onchange="renderErrors()"><option value="setup">آماده‌سازی</option><option value="draw" selected>کشش / انکر</option><option value="release">رهاسازی / ادامه حرکت</option></select>
+        &nbsp; دست کمان: <select id="bowSideSel" onchange="renderErrors()"><option value="L">چپ (کمانگیر راست‌دست)</option><option value="R">راست (کمانگیر چپ‌دست)</option></select></div>
+        <div id="errList"></div>
+    </div>
+
+    <!-- پنجرهٔ کالیبراسیون -->
+    <div id="calibModal" class="calib-modal">
+        <div class="calib-box">
+            <h3>🎯 کالیبراسیون شخصی</h3>
+            <div class="hint">روش اول: در حالت کشش کامل (قبل از رها کردن) بایستید و «ثبت از دوربین» را بزنید. بعد از ۳ ثانیه آماده‌باش، میانگین چند فریم گرفته می‌شود و اعداد پایین پر می‌شوند. روش دوم: اعداد را دستی وارد کنید. در هر دو حالت می‌توانید اعداد را قبل از ذخیره ویرایش کنید.</div>
+            <button id="calibCaptureBtn" class="btn btn-blue" style="width:100%;" onclick="captureCalibration()">📷 ثبت از دوربین (در کشش کامل)</button>
+            <div id="calibMsg"></div>
+            <div class="row"><span>زاویه آرنج کشش (°)</span><input id="cfgElbow" type="number" step="1" min="0" max="180"></div>
+            <div class="row"><span>تلورانس آرنج (±°)</span><input id="cfgTolElbow" type="number" step="1" min="1" max="30"></div>
+            <div class="row"><span>زاویه دست کمان (°)</span><input id="cfgBowArm" type="number" step="1" min="90" max="180"></div>
+            <div class="row"><span>تلورانس دست کمان (±°)</span><input id="cfgTolBow" type="number" step="1" min="1" max="30"></div>
+            <div class="row"><span>حداکثر کجی سر (°)</span><input id="cfgHead" type="number" step="1" min="1" max="15"></div>
+            <div class="row"><span>حداکثر شیب شانه (°)</span><input id="cfgShoulder" type="number" step="1" min="1" max="15"></div>
+            <div class="controls" style="margin-top:10px;">
+                <button class="btn btn-green" onclick="saveCalibrationForm()">💾 ذخیره</button>
+                <button class="btn btn-blue" onclick="closeCalibDialog()">بستن</button>
+            </div>
+        </div>
+    </div>
+
+    <script id="errDB" type="application/json">[{"c":"g1","sec":"Grip / دست کمان","sub":"فشار دست","d":"گرفتن دسته با فشار زیاد","cause":"تنش ساعد و ترس از رهاسازی","body":"آرام‌سازی ساعد، ثبات مچ","mind":"اضطراب/کنترل بیش از حد","drill":"Blank Bale با دست باز","aux":"Rubber band relaxation","sev":"بالا","w":5,"low":"حجم تیر کم، تمرکز روی حس دست"},{"c":"g2","sec":"Grip / دست کمان","sub":"محل فشار","d":"نقطه فشار غلط روی گریپ","cause":"قرارگیری نامناسب کف دست","body":"تحرک مچ و آگاهی بدنی","mind":"تمرکز پایین","drill":"Grip placement drill","aux":"Mirror check","sev":"بالا","w":5,"low":"تمرین بدون امتیازدهی"},{"c":"g3","sec":"Grip / دست کمان","sub":"Torque","d":"چرخش کمان در دست","cause":"فشار انگشتان و مچ","body":"ثبات مچ و شانه جلو","mind":"استرس","drill":"Bow hand torque drill","aux":"Blank Bale","sev":"بالا","w":5,"low":"فاصله کم، تیر کمتر"},{"c":"le1","sec":"Elbow / آرنج کمان","sub":"ثبات آرنج","d":"بی‌ثباتی آرنج جلو","cause":"قفل‌نشدن صحیح، ضعف کنترل مفصل","body":"ثبات شانه و کتف","mind":"عجله","drill":"Bow arm stability hold","aux":"Scapular control","sev":"متوسط","w":4,"low":"کاهش وزنه/پوند کمان"},{"c":"le2","sec":"Elbow / آرنج کمان","sub":"زاویه آرنج","d":"تغییر زاویه آرنج در کشش","cause":"ناهماهنگی راستا","body":"قدرت میان‌تنه و شانه","mind":"تمرکز","drill":"Alignment drill","aux":"Theraband draw","sev":"متوسط","w":4,"low":"تمرین آینه‌ای"},{"c":"lsh1","sec":"Shoulder / شانه کمان","sub":"بالا آمدن شانه","d":"شانه جلو بالا می‌رود","cause":"ضعف کتف و تنش گردن","body":"ثبات کتف، trap پایین","mind":"استرس","drill":"Low shoulder drill","aux":"Scapular depression","sev":"بالا","w":5,"low":"در صورت درد، تمرین سبک"},{"c":"lsh2","sec":"Shoulder / شانه کمان","sub":"ثبات کتف","d":"تغییر وضعیت کتف","cause":"خستگی شانه/پوزیشن بد","body":"ثبات کتف و Core","mind":"خستگی ذهنی","drill":"Scapular set drill","aux":"Serratus wall slide","sev":"بالا","w":5,"low":"کاهش حجم تمرین"},{"c":"b1","sec":"Body / بدن","sub":"تعادل","d":"نوسان بدن در نشانه‌گیری","cause":"ضعف تعادل و Core","body":"تعادل، Core، پایین‌تنه","mind":"اضطراب","drill":"Balance stance drill","aux":"Single-leg balance","sev":"متوسط","w":4,"low":"فاصله کوتاه و تمرکز روی سکون"},{"c":"b2","sec":"Body / بدن","sub":"Posture","d":"خم شدن تنه","cause":"ضعف میان‌تنه/آگاهی پوسچر","body":"Core و موبیلیتی لگن","mind":"تمرکز پایین","drill":"Posture reset routine","aux":"Pallof press","sev":"بالا","w":5,"low":"تمرین آهسته بدون امتیاز"},{"c":"b3","sec":"Body / بدن","sub":"Collapse","d":"ریزش بدن پس از رهاسازی","cause":"خستگی/نبود follow-through","body":"Core و پشت شانه","mind":"عجله","drill":"Expansion + hold drill","aux":"Core endurance","sev":"بالا","w":5,"low":"کاهش تعداد تیر"},{"c":"s1","sec":"Stance / استقرار","sub":"عرض پا","d":"فاصله پاها نامناسب","cause":"نبود الگوی ثابت استقرار","body":"تعادل و آگاهی بدنی","mind":"عدم روتین","drill":"Stance marker drill","aux":"Balance board","sev":"متوسط","w":4,"low":"ثبت با عکس/ویدئو"},{"c":"s2","sec":"Stance / استقرار","sub":"زاویه بدن","d":"زاویه بدن تغییر می‌کند","cause":"عدم تکرارپذیری ستاپ","body":"موبیلیتی لگن/ستون فقرات","mind":"تمرکز پایین","drill":"Foot line drill","aux":"Pre-shot checklist","sev":"متوسط","w":4,"low":"چک‌لیست قبل از تیر"},{"c":"sh1","sec":"Set-up / آماده‌سازی","sub":"ستاپ","d":"ستاپ عجولانه","cause":"نبود روتین قبل از کشش","body":"هماهنگی شانه و کتف","mind":"عجله","drill":"Set-up pause drill","aux":"Breathing routine","sev":"بالا","w":5,"low":"کاهش ریتم تمرین"},{"c":"sh2","sec":"Set-up / آماده‌سازی","sub":"ریتم","d":"ریتم شروع متغیر","cause":"ناهماهنگی ذهنی و بدنی","body":"کنترل تنفس","mind":"اضطراب","drill":"Tempo metronome drill","aux":"Box breathing","sev":"متوسط","w":4,"low":"تمرین با شمارش"},{"c":"d1","sec":"Draw / کشش","sub":"مسیر کشش","d":"مسیر کشش ناپایدار","cause":"ضعف پشت/کتف","body":"عضلات پشت، کتف","mind":"تمرکز پایین","drill":"Theraband draw path","aux":"Row + face pull","sev":"بالا","w":5,"low":"کش تمرینی سبک"},{"c":"d2","sec":"Draw / کشش","sub":"قدرت کشش","d":"لرزش در کشش","cause":"پوند بالا یا خستگی","body":"قدرت پشت و شانه","mind":"اعتمادبه‌نفس پایین","drill":"Draw hold drill","aux":"Isometric hold","sev":"بالا","w":5,"low":"کاهش حجم یا پوند"},{"c":"a1","sec":"Anchor / انکر","sub":"نقطه انکر","d":"نقطه انکر ثابت نیست","cause":"نبود مرجع ثابت صورت","body":"کنترل گردن/شانه","mind":"تمرکز پایین","drill":"Anchor touch drill","aux":"Mirror anchor","sev":"بالا","w":5,"low":"تمرین کم‌فاصله"},{"c":"a2","sec":"Anchor / انکر","sub":"فشار انکر","d":"فشار انکر زیاد/کم","cause":"تنش فک یا دست زه","body":"آرام‌سازی گردن/ساعد","mind":"استرس","drill":"Anchor pressure awareness","aux":"Blind bale","sev":"بالا","w":5,"low":"حذف امتیازدهی جلسه"},{"c":"al1","sec":"Alignment / هم‌راستایی","sub":"خط نیرو","d":"هم‌راستایی شانه-آرنج ضعیف","cause":"ضعف پشت یا تکنیک کشش","body":"پشت شانه، کتف","mind":"تمرکز","drill":"Alignment mirror drill","aux":"Elastic band alignment","sev":"بالا","w":5,"low":"تمرین آهسته"},{"c":"al2","sec":"Alignment / هم‌راستایی","sub":"سر/گردن","d":"سر از مسیر خارج می‌شود","cause":"عدم پایداری سر و گردن","body":"موبیلیتی گردن/پوسچر","mind":"تمرکز پایین","drill":"Head stability drill","aux":"Posture reset","sev":"متوسط","w":4,"low":"تمرکز روی روتین"},{"c":"aim1","sec":"Aim / نشانه‌گیری","sub":"نگهداری هدف","d":"سایت روی هدف ثابت نمی‌ماند","cause":"تعادل/تنفس/خستگی","body":"تعادل، Core، شانه","mind":"اضطراب","drill":"Aiming hold drill","aux":"Breathing + sight picture","sev":"متوسط","w":4,"low":"کاهش زمان نگهداری"},{"c":"aim2","sec":"Aim / نشانه‌گیری","sub":"over-aiming","d":"نشانه‌گیری بیش از حد طولانی","cause":"ترس از رهاسازی","body":"استقامت شانه","mind":"اضطراب","drill":"Timed shot drill","aux":"Clicker rhythm","sev":"بالا","w":5,"low":"محدودیت زمان شلیک"},{"c":"ex1","sec":"Expansion / ادامه کشش","sub":"ادامه کشش","d":"پس از انکر، کشش متوقف می‌شود","cause":"ضعف پشت/ترس از کلیکر","body":"لات، رومبوئید، پشت شانه","mind":"اضطراب","drill":"Expansion drill","aux":"Clicker control drill","sev":"بالا","w":5,"low":"تمرین با کش و کلیکر"},{"c":"ex2","sec":"Expansion / ادامه کشش","sub":"Collapse","d":"کاهش کشش قبل از رهاسازی","cause":"خستگی/ضعف روتین","body":"پشت، Core","mind":"عجله","drill":"Hold + expand drill","aux":"Isometric back hold","sev":"بالا","w":5,"low":"حجم کمتر، کیفیت بالاتر"},{"c":"r1","sec":"Release / رهاسازی","sub":"رهاسازی نرم","d":"رهاسازی با ضربه","cause":"تنش انگشتان و ساعد","body":"آرام‌سازی ساعد/پشت","mind":"استرس","drill":"Relaxed release drill","aux":"Blank bale release","sev":"بالا","w":5,"low":"عدم ثبت امتیاز"},{"c":"r2","sec":"Release / رهاسازی","sub":"کشیدن زه","d":"کندن زه با دست","cause":"ضعف back tension","body":"پشت شانه و کتف","mind":"عجله","drill":"Back tension release drill","aux":"Theraband release","sev":"بالا","w":5,"low":"تمرین آهسته"},{"c":"r3","sec":"Release / رهاسازی","sub":"زمان رهاسازی","d":"رهاسازی زود/دیر","cause":"عدم کنترل ریتم","body":"کنترل تنفس","mind":"اضطراب","drill":"Shot timing drill","aux":"Metronome routine","sev":"متوسط","w":4,"low":"زمان‌بندی ثابت"},{"c":"f1","sec":"Follow-through / ادامه حرکت","sub":"ادامه حرکت","d":"قطع حرکت پس از رهاسازی","cause":"عجله یا افت تمرکز","body":"Core و پشت شانه","mind":"عجله","drill":"Follow-through freeze","aux":"Video feedback","sev":"بالا","w":5,"low":"نگه‌داشتن ۲ ثانیه"},{"c":"f2","sec":"Follow-through / ادامه حرکت","sub":"دست کمان","d":"دست کمان پس از رهاسازی می‌افتد","cause":"ضعف شانه جلو","body":"شانه کمان، Core","mind":"خستگی","drill":"Bow arm finish drill","aux":"Scapular endurance","sev":"متوسط","w":4,"low":"کاهش تیرهای آخر جلسه"},{"c":"br1","sec":"Breathing / تنفس","sub":"تنفس","d":"حبس نفس نامناسب","cause":"نبود روتین تنفسی","body":"دیافراگم/کنترل بدن","mind":"اضطراب","drill":"4-2-6 breathing drill","aux":"Pre-shot breath","sev":"متوسط","w":4,"low":"تنفس قبل از ستاپ"},{"c":"c1","sec":"Clicker / کلیکر","sub":"ریتم کلیکر","d":"کلیکر دیر می‌افتد","cause":"Expansion ضعیف یا پوند زیاد","body":"پشت شانه","mind":"اضطراب","drill":"Clicker timing drill","aux":"Elastic clicker simulation","sev":"بالا","w":5,"low":"هدف: ریتم، نه امتیاز"},{"c":"c2","sec":"Clicker / کلیکر","sub":"ترس کلیکر","d":"ترس/انتظار کلیکر","cause":"اضطراب عملکرد","body":"تنفس و آرام‌سازی","mind":"اضطراب","drill":"Surprise clicker drill","aux":"Mental rehearsal","sev":"بالا","w":5,"low":"تمرین ذهنی قبل از تیر"},{"c":"E01","sec":"Stance / استقرار","sub":"استقرار","d":"خطای عمومی Stance","cause":"الگوی پای نامناسب","body":"تعادل/پایین‌تنه","mind":"روتین ضعیف","drill":"Stance marker drill","aux":"Balance drill","sev":"متوسط","w":4,"low":"تمرین تکنیکی سبک"},{"c":"E02","sec":"Grip / دست کمان","sub":"گریپ","d":"خطای عمومی Grip","cause":"فشار یا محل دست غلط","body":"مچ/ساعد/شانه","mind":"استرس","drill":"Grip placement drill","aux":"Blank Bale","sev":"بالا","w":5,"low":"تمرین بدون امتیاز"},{"c":"E03","sec":"Set-up / آماده‌سازی","sub":"ستاپ","d":"خطای عمومی Set-Up","cause":"شروع ناهماهنگ","body":"کتف/شانه","mind":"عجله","drill":"Set-up pause drill","aux":"Breathing","sev":"بالا","w":5,"low":"کاهش ریتم"},{"c":"E04","sec":"Draw / کشش","sub":"کشش","d":"خطای عمومی Draw","cause":"مسیر کشش ضعیف","body":"پشت/کتف","mind":"تمرکز","drill":"Draw path drill","aux":"Theraband","sev":"بالا","w":5,"low":"کش سبک"},{"c":"E05","sec":"Anchor / انکر","sub":"انکر","d":"خطای عمومی Anchor","cause":"نقطه مرجع ثابت نیست","body":"گردن/شانه","mind":"تمرکز","drill":"Anchor touch drill","aux":"Mirror","sev":"بالا","w":5,"low":"فاصله کم"},{"c":"E06","sec":"Aim / نشانه‌گیری","sub":"Aim","d":"خطای عمومی Aim","cause":"نگهداری هدف ضعیف","body":"تعادل/Core","mind":"اضطراب","drill":"Aiming hold drill","aux":"Breathing","sev":"متوسط","w":4,"low":"حجم متوسط"},{"c":"E07","sec":"Release / رهاسازی","sub":"Release","d":"خطای عمومی Release","cause":"تنش انگشتان یا کندن زه","body":"ساعد/پشت شانه","mind":"استرس","drill":"Relaxed release drill","aux":"Blank Bale","sev":"بالا","w":5,"low":"بدون امتیازدهی"},{"c":"E08","sec":"Follow-through / ادامه حرکت","sub":"Follow","d":"خطای عمومی Follow-through","cause":"قطع حرکت","body":"Core/پشت شانه","mind":"عجله","drill":"Follow-through freeze","aux":"Video","sev":"بالا","w":5,"low":"کیفیت اولویت دارد"},{"c":"E09","sec":"Elbow / آرنج","sub":"آرنج","d":"خطای عمومی Elbow","cause":"زاویه/ثبات آرنج","body":"شانه/کتف","mind":"تمرکز","drill":"Elbow alignment drill","aux":"Scapular set","sev":"متوسط","w":4,"low":"تمرین آینه‌ای"},{"c":"E10","sec":"Shoulder / شانه کمان","sub":"بازوی کمان","d":"خطای Bow Arm","cause":"بی‌ثباتی بازوی کمان","body":"شانه جلو/Core","mind":"خستگی","drill":"Bow arm stability hold","aux":"Serratus drill","sev":"بالا","w":5,"low":"کاهش حجم"},{"c":"E11","sec":"String / زه","sub":"زه","d":"خطای String alignment","cause":"راستای زه غلط","body":"پوسچر/سر/گردن","mind":"تمرکز","drill":"String picture drill","aux":"Head stability","sev":"متوسط","w":4,"low":"آهسته و با ویدئو"},{"c":"E12","sec":"Breathing / تنفس","sub":"تنفس","d":"خطای عمومی Breath","cause":"ریتم تنفس غلط","body":"دیافراگم","mind":"اضطراب","drill":"4-2-6 breathing drill","aux":"Pre-shot routine","sev":"متوسط","w":4,"low":"تنفس قبل از شلیک"},{"c":"g4","sec":"Grip / دست کمان","sub":"Not Relax","d":"Left Hand (LH) - Grip — Not Relax","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale + Grip placement drill","aux":"تمرین رهاسازی فشار دست کمان","sev":"بالا","w":5,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"le3","sec":"Elbow / آرنج دست کمان","sub":"Angle","d":"Left Hand (LH) - Elbow — Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز، روتین قبل از شلیک","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"بالا","w":5,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"le4","sec":"Elbow / آرنج دست کمان","sub":"چرخش","d":"Left Hand (LH) - Elbow — Elbow Rotation","cause":"چرخش تنه/مفصل خارج از الگوی استاندارد؛ نیاز به اصلاح پوزیشن.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز، روتین قبل از شلیک","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"lsh3","sec":"Shoulder / شانه دست کمان","sub":"زاویه بالا","d":"Left Hand (LH) - Shoulder — Higher Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"پایین","w":3,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"lsh4","sec":"Shoulder / شانه دست کمان","sub":"زاویه پایین","d":"Left Hand (LH) - Shoulder — Lower Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"lsh5","sec":"Shoulder / شانه دست کمان","sub":"Near Angle","d":"Left Hand (LH) - Shoulder — Near Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"lsh6","sec":"Shoulder / شانه دست کمان","sub":"Far Angle","d":"Left Hand (LH) - Shoulder — Far Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"h1","sec":"Head / سر و گردن","sub":"ثبات","d":"Head — Instability","cause":"نبود ثبات در پوزیشن؛ احتمالاً به دلیل ضعف کنترل عصبی-عضلانی یا خستگی.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"افت تمرکز یا خستگی ذهنی","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"h2","sec":"Head / سر و گردن","sub":"تکرارپذیری","d":"Head — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز پایین / روتین ناپایدار","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"h3","sec":"Head / سر و گردن","sub":"زاویه بالا","d":"Head — Higher Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز، روتین قبل از شلیک","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"h4","sec":"Head / سر و گردن","sub":"زاویه پایین","d":"Head — Lower Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز، روتین قبل از شلیک","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"h5","sec":"Head / سر و گردن","sub":"زاویه داخلی","d":"Head — Inner Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز، روتین قبل از شلیک","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"h6","sec":"Head / سر و گردن","sub":"زاویه خارجی","d":"Head — Outer Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز، روتین قبل از شلیک","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"b4","sec":"Body / بدن و تنه","sub":"فلکشن / خم‌شدن","d":"Body — Left Lateral Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"b5","sec":"Body / بدن و تنه","sub":"چرخش","d":"Body (22 Mar) — Hypo Rotation","cause":"چرخش تنه/مفصل خارج از الگوی استاندارد؛ نیاز به اصلاح پوزیشن.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"b6","sec":"Body / بدن و تنه","sub":"چرخش","d":"Body (22 Mar) — Hyper Rotation","cause":"چرخش تنه/مفصل خارج از الگوی استاندارد؛ نیاز به اصلاح پوزیشن.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"b7","sec":"Body / بدن و تنه","sub":"On Right Leg","d":"Body (22 Mar) — On Right Leg","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"b8","sec":"Body / بدن و تنه","sub":"On Left Leg","d":"Body (22 Mar) — On Left Leg","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"b9","sec":"Body / بدن و تنه","sub":"Trunk Hypertension","d":"Body (22 Mar) — Trunk Hypertension","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"f1O","sec":"Fingers / انگشتان دست زه","sub":"ثبات","d":"Right Hand - Fingers — Instability (Open)","cause":"نبود ثبات در پوزیشن؛ احتمالاً به دلیل ضعف کنترل عصبی-عضلانی یا خستگی.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"افت تمرکز یا خستگی ذهنی","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"f1C","sec":"Fingers / انگشتان دست زه","sub":"ثبات","d":"Right Hand - Fingers — Instability (Close)","cause":"نبود ثبات در پوزیشن؛ احتمالاً به دلیل ضعف کنترل عصبی-عضلانی یا خستگی.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"افت تمرکز یا خستگی ذهنی","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"f3","sec":"Fingers / انگشتان دست زه","sub":"Hypertension","d":"Right Hand - Fingers — Hypertension","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"f4","sec":"Fingers / انگشتان دست زه","sub":"فلکشن / خم‌شدن","d":"Right Hand - Fingers — Metacarpal Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"w1","sec":"Wrist / مچ دست زه","sub":"ثبات","d":"Right Hand - Wrist — Instability","cause":"نبود ثبات در پوزیشن؛ احتمالاً به دلیل ضعف کنترل عصبی-عضلانی یا خستگی.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"افت تمرکز یا خستگی ذهنی","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"w2","sec":"Wrist / مچ دست زه","sub":"تکرارپذیری","d":"Right Hand - Wrist — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز پایین / روتین ناپایدار","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"w3","sec":"Wrist / مچ دست زه","sub":"فلکشن / خم‌شدن","d":"Right Hand - Wrist — Wrist Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"w4","sec":"Wrist / مچ دست زه","sub":"اکستنشن / بازشدن","d":"Right Hand - Wrist — Wrist Extension","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"w5","sec":"Wrist / مچ دست زه","sub":"انحراف مچ","d":"Right Hand - Wrist — Radial Deviation","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"w6","sec":"Wrist / مچ دست زه","sub":"انحراف مچ","d":"Right Hand - Wrist — Ulnar Deviation","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"w7","sec":"Wrist / مچ دست زه","sub":"Hypertension","d":"Right Hand - Wrist — Hypertension","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"re1","sec":"Elbow / آرنج دست زه","sub":"ثبات","d":"Right Hand - Elbow — Instability","cause":"نبود ثبات در پوزیشن؛ احتمالاً به دلیل ضعف کنترل عصبی-عضلانی یا خستگی.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"افت تمرکز یا خستگی ذهنی","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"re2","sec":"Elbow / آرنج دست زه","sub":"تکرارپذیری","d":"Right Hand - Elbow — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز پایین / روتین ناپایدار","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"re3","sec":"Elbow / آرنج دست زه","sub":"زاویه بالا","d":"Right Hand - Elbow — Higher","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز، روتین قبل از شلیک","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"re4","sec":"Elbow / آرنج دست زه","sub":"زاویه پایین","d":"Right Hand - Elbow — Lower","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز، روتین قبل از شلیک","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"re5","sec":"Elbow / آرنج دست زه","sub":"زاویه داخلی","d":"Right Hand - Elbow — Inner","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز، روتین قبل از شلیک","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"re6","sec":"Elbow / آرنج دست زه","sub":"زاویه خارجی","d":"Right Hand - Elbow — Outer","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز، روتین قبل از شلیک","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"rsh1","sec":"Shoulder / شانه دست زه","sub":"ثبات","d":"Right Hand - Shoulder — Instability","cause":"نبود ثبات در پوزیشن؛ احتمالاً به دلیل ضعف کنترل عصبی-عضلانی یا خستگی.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"افت تمرکز یا خستگی ذهنی","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"rsh2","sec":"Shoulder / شانه دست زه","sub":"تکرارپذیری","d":"Right Hand - Shoulder — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز پایین / روتین ناپایدار","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"rsh3","sec":"Shoulder / شانه دست زه","sub":"زاویه بالا","d":"Right Hand - Shoulder — Angle Higher","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"rsh4","sec":"Shoulder / شانه دست زه","sub":"زاویه پایین","d":"Right Hand - Shoulder — Angle Lower","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"rsh5","sec":"Shoulder / شانه دست زه","sub":"زاویه داخلی","d":"Right Hand - Shoulder — Angle Inner","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"rsh6","sec":"Shoulder / شانه دست زه","sub":"زاویه خارجی","d":"Right Hand - Shoulder — Angle Outer","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"G1","sec":"Start Position / وضعیت شروع","sub":"Wrong  Point","d":"Process - Start Position — Wrong  Point","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"G2","sec":"Start Position / وضعیت شروع","sub":"تکرارپذیری","d":"Process - Start Position — Changing the Point","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز پایین / روتین ناپایدار","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LE1","sec":"Start Position / وضعیت شروع","sub":"اکستنشن / بازشدن","d":"Process - Start Position — Not Full Extension","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LSH1","sec":"Start Position / وضعیت شروع","sub":"زاویه بالا","d":"Process - Start Position — Higher","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LSH2","sec":"Start Position / وضعیت شروع","sub":"تکرارپذیری","d":"Process - Start Position — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز پایین / روتین ناپایدار","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"H1","sec":"Start Position / وضعیت شروع","sub":"Don't Look to Target","d":"Process - Start Position — Don't Look to Target","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"H2","sec":"Start Position / وضعیت شروع","sub":"تکرارپذیری","d":"Process - Start Position — Changing the Angle","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز پایین / روتین ناپایدار","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B1","sec":"Start Position / وضعیت شروع","sub":"Not in Central and Deep Position","d":"Process - Start Position — Not in Central and Deep Position","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B2","sec":"Start Position / وضعیت شروع","sub":"تکرارپذیری","d":"Process - Start Position — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز پایین / روتین ناپایدار","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F1","sec":"Start Position / وضعیت شروع","sub":"Not in Correct Position","d":"Process - Start Position — Not in Correct Position","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F2","sec":"Start Position / وضعیت شروع","sub":"تکرارپذیری","d":"Process - Start Position — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز پایین / روتین ناپایدار","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"W1","sec":"Start Position / وضعیت شروع","sub":"Not in Neutral Position","d":"Process - Start Position — Not in Neutral Position","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"W2","sec":"Start Position / وضعیت شروع","sub":"تکرارپذیری","d":"Process - Start Position — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز پایین / روتین ناپایدار","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RE1","sec":"Start Position / وضعیت شروع","sub":"Not in Correct Position","d":"Process - Start Position — Not in Correct Position","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RE2","sec":"Start Position / وضعیت شروع","sub":"تکرارپذیری","d":"Process - Start Position — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز پایین / روتین ناپایدار","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RSH1","sec":"Start Position / وضعیت شروع","sub":"زاویه بالا","d":"Process - Start Position — Vertical Higher Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RSH2","sec":"Start Position / وضعیت شروع","sub":"تکرارپذیری","d":"Process - Start Position — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز پایین / روتین ناپایدار","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"G3","sec":"Draw / کشش","sub":"تکرارپذیری","d":"Drawing — Changing the Point","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز پایین / روتین ناپایدار","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"G4","sec":"Draw / کشش","sub":"Hypertension in Wrist and Fingers","d":"Drawing — Hypertension in Wrist and Fingers","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"G5","sec":"Draw / کشش","sub":"انحراف مچ","d":"Drawing — Radial Deviation","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"G6","sec":"Draw / کشش","sub":"انحراف مچ","d":"Drawing — Ulnar Deviation","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"G7","sec":"Draw / کشش","sub":"تکرارپذیری","d":"Drawing — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز پایین / روتین ناپایدار","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LE2","sec":"Draw / کشش","sub":"اکستنشن / بازشدن","d":"Drawing — Not Full Extension","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LE3","sec":"Draw / کشش","sub":"زاویه داخلی","d":"Drawing — Not Internal Rotation","cause":"چرخش تنه/مفصل خارج از الگوی استاندارد؛ نیاز به اصلاح پوزیشن.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LE4","sec":"Draw / کشش","sub":"فلکشن / خم‌شدن","d":"Drawing — Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LSH3","sec":"Draw / کشش","sub":"زاویه بالا","d":"Drawing — Higher Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LSH4","sec":"Draw / کشش","sub":"زاویه پایین","d":"Drawing — Lower Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LSH5","sec":"Draw / کشش","sub":"زاویه داخلی","d":"Drawing — Inner Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LSH6","sec":"Draw / کشش","sub":"زاویه خارجی","d":"Drawing — Outer Angle","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Theraband draw path","aux":"Row / face pull سبک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F6","sec":"Anchor / انکر","sub":"تماس صورت/زه","d":"Ankering - Face Contact — No Contact to Face","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F7","sec":"Anchor / انکر","sub":"زاویه بالا","d":"Ankering - Face Contact — Higher Contact to Face","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F8","sec":"Anchor / انکر","sub":"زاویه بالا","d":"Ankering - Face Contact — Upper Anker","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F9","sec":"Anchor / انکر","sub":"Ahead Anker","d":"Ankering - Face Contact — Ahead Anker","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F10","sec":"Anchor / انکر","sub":"Further Back Anker","d":"Ankering - Face Contact — Further Back Anker","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F11","sec":"Anchor / انکر","sub":"تکرارپذیری","d":"Ankering - Face Contact — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز پایین / روتین ناپایدار","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"S1","sec":"Anchor / انکر","sub":"String on Left on Nose","d":"Ankering - String — String on Left on Nose","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"S2","sec":"Anchor / انکر","sub":"String Right on Nose","d":"Ankering - String — String Right on Nose","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"S3","sec":"Anchor / انکر","sub":"Ahead on Chin","d":"Ankering - String — Ahead on Chin","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"S4","sec":"Anchor / انکر","sub":"Further Back on Chin","d":"Ankering - String — Further Back on Chin","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"S5","sec":"Anchor / انکر","sub":"تکرارپذیری","d":"Ankering - String — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز پایین / روتین ناپایدار","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F12","sec":"Anchor / انکر","sub":"Move Back on Face","d":"Ankering - Attention — Move Back on Face","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F13","sec":"Anchor / انکر","sub":"Move Forward","d":"Ankering - Attention — Move Forward","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"S6","sec":"Anchor / انکر","sub":"Move Back on Face","d":"Ankering - Attention — Move Back on Face","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"S7","sec":"Anchor / انکر","sub":"Move Forward","d":"Ankering - Attention — Move Forward","cause":"نقطه مرجع انکر ثابت نیست یا تماس صورت/زه تکرارپذیر نیست.","body":"عضلات پشت، کتف، گردن، ساعد","mind":"تمرکز، روتین قبل از شلیک","drill":"Anchor touch drill","aux":"Mirror anchor + Blind bale","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"G8","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"رهاسازی","d":"Release & Follow Through — Hit Lift","cause":"تنش دست زه، عجله یا نبود ادامه حرکت پس از رهاسازی.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"G9","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"رهاسازی","d":"Release & Follow Through — Hit Right","cause":"تنش دست زه، عجله یا نبود ادامه حرکت پس از رهاسازی.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"G10","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"رهاسازی","d":"Release & Follow Through — Catch the Bow","cause":"تنش دست زه، عجله یا نبود ادامه حرکت پس از رهاسازی.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LE5","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"فلکشن / خم‌شدن","d":"Release & Follow Through — Hit Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"LE6","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"رهاسازی","d":"Release & Follow Through — Return to Ext Rotated","cause":"تنش دست زه، عجله یا نبود ادامه حرکت پس از رهاسازی.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"H10","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"رهاسازی","d":"Release & Follow Through — Move Around","cause":"تنش دست زه، عجله یا نبود ادامه حرکت پس از رهاسازی.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B13","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"رهاسازی","d":"Release & Follow Through — Move Around","cause":"تنش دست زه، عجله یا نبود ادامه حرکت پس از رهاسازی.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F14","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"رهاسازی","d":"Release & Follow Through — Active Release","cause":"تنش دست زه، عجله یا نبود ادامه حرکت پس از رهاسازی.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F15","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"رهاسازی","d":"Release & Follow Through — Open Fingers","cause":"تنش دست زه، عجله یا نبود ادامه حرکت پس از رهاسازی.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F16","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"زاویه پایین","d":"Release & Follow Through — Open from the Lower Finger","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F17","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"فلکشن / خم‌شدن","d":"Release & Follow Through — Hyper Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"W5","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"فلکشن / خم‌شدن","d":"Release & Follow Through — Hit Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"W6","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"انحراف مچ","d":"Release & Follow Through — Hit  Ulnar Deviation","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RE8","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"زاویه پایین","d":"Release & Follow Through — Hit down","cause":"تنش دست زه، عجله یا نبود ادامه حرکت پس از رهاسازی.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RE9","sec":"Release & Follow-through / رهاسازی و ادامه حرکت","sub":"رهاسازی","d":"Release & Follow Through — Donot Hit elbow","cause":"تنش دست زه، عجله یا نبود ادامه حرکت پس از رهاسازی.","body":"ساعد، پشت شانه، کتف، Core","mind":"عجله یا ترس از رهاسازی","drill":"Release relaxation drill","aux":"Follow-through hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"H3","sec":"Head / سر و گردن","sub":"زاویه بالا","d":"Head (24 Mar) — Change to Up","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز، روتین قبل از شلیک","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"H4","sec":"Head / سر و گردن","sub":"زاویه پایین","d":"Head (24 Mar) — Change to Down","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز، روتین قبل از شلیک","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"H5","sec":"Head / سر و گردن","sub":"Change to Right","d":"Head (24 Mar) — Change to Right","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز، روتین قبل از شلیک","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"H6","sec":"Head / سر و گردن","sub":"Change to Left","d":"Head (24 Mar) — Change to Left","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز، روتین قبل از شلیک","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"H7","sec":"Head / سر و گردن","sub":"زاویه خارجی","d":"Head (24 Mar) — Sagittal Turn Outer","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز، روتین قبل از شلیک","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"H8","sec":"Head / سر و گردن","sub":"زاویه داخلی","d":"Head (24 Mar) — Sagittal Turn Inner","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز، روتین قبل از شلیک","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"H9","sec":"Head / سر و گردن","sub":"تکرارپذیری","d":"Head (24 Mar) — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"پوسچر گردن، ثبات سر، موبیلیتی ستون فقرات","mind":"تمرکز پایین / روتین ناپایدار","drill":"Head stability drill","aux":"Mirror posture check","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B3","sec":"Body / بدن و تنه","sub":"اکستنشن / بازشدن","d":"Body (24 Mar) — Hyper Extension","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B4","sec":"Body / بدن و تنه","sub":"چرخش","d":"Body (24 Mar) — Hypo Rotation","cause":"چرخش تنه/مفصل خارج از الگوی استاندارد؛ نیاز به اصلاح پوزیشن.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B5","sec":"Body / بدن و تنه","sub":"چرخش","d":"Body (24 Mar) — Hyper Rotation","cause":"چرخش تنه/مفصل خارج از الگوی استاندارد؛ نیاز به اصلاح پوزیشن.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B6","sec":"Body / بدن و تنه","sub":"فلکشن / خم‌شدن","d":"Body (24 Mar) — Right Lateral Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B7","sec":"Body / بدن و تنه","sub":"فلکشن / خم‌شدن","d":"Body (24 Mar) — Left Lateral Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B8","sec":"Body / بدن و تنه","sub":"Turn to Forward","d":"Body (24 Mar) — Turn to Forward","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B9","sec":"Body / بدن و تنه","sub":"Turn to Back","d":"Body (24 Mar) — Turn to Back","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B10","sec":"Body / بدن و تنه","sub":"Weight on Left Leg","d":"Body (24 Mar) — Weight on Left Leg","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B11","sec":"Body / بدن و تنه","sub":"Weight on Right Leg","d":"Body (24 Mar) — Weight on Right Leg","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز، روتین قبل از شلیک","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"B12","sec":"Body / بدن و تنه","sub":"تکرارپذیری","d":"Body (24 Mar) — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"Core، تعادل، لگن، پایین‌تنه","mind":"تمرکز پایین / روتین ناپایدار","drill":"Stance marker drill","aux":"Balance + Core stability","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F3O","sec":"Fingers / انگشتان دست زه","sub":"تکرارپذیری","d":"Right Hand - Fingers (25 Mar) — Changing (Open)","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز پایین / روتین ناپایدار","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F3C","sec":"Fingers / انگشتان دست زه","sub":"تکرارپذیری","d":"Right Hand - Fingers (25 Mar) — Changing (Close)","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز پایین / روتین ناپایدار","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F4","sec":"Fingers / انگشتان دست زه","sub":"Hypertension","d":"Right Hand - Fingers (25 Mar) — Hypertension","cause":"نیاز به بررسی ویدئویی و ثبت تکرار خطا در چند جلسه برای تعیین علت قطعی.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"F5","sec":"Fingers / انگشتان دست زه","sub":"فلکشن / خم‌شدن","d":"Right Hand - Fingers (25 Mar) — Metacarpal Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"W3","sec":"Wrist / مچ دست زه","sub":"فلکشن / خم‌شدن","d":"Right Hand - Wrist (25 Mar) — Flexion","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"W4","sec":"Wrist / مچ دست زه","sub":"اکستنشن / بازشدن","d":"Right Hand - Wrist (25 Mar) — Extension","cause":"کنترل مفصل و آگاهی حرکتی کافی نیست؛ احتمال تنش یا ضعف عضلات تثبیت‌کننده.","body":"ساعد، مچ، انگشتان، آرام‌سازی دست","mind":"تمرکز، روتین قبل از شلیک","drill":"Blank Bale کنترل‌شده","aux":"فیلم‌برداری و بازبینی تکنیک","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RE3","sec":"Elbow / آرنج دست زه","sub":"زاویه بالا","d":"Right Hand - Elbow (25 Mar) — Higher","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز، روتین قبل از شلیک","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RE4","sec":"Elbow / آرنج دست زه","sub":"زاویه پایین","d":"Right Hand - Elbow (25 Mar) — Lower","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز، روتین قبل از شلیک","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RE5","sec":"Elbow / آرنج دست زه","sub":"زاویه داخلی","d":"Right Hand - Elbow (25 Mar) — Inner","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز، روتین قبل از شلیک","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RE6","sec":"Elbow / آرنج دست زه","sub":"زاویه خارجی","d":"Right Hand - Elbow (25 Mar) — Outer","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز، روتین قبل از شلیک","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RE7","sec":"Elbow / آرنج دست زه","sub":"تکرارپذیری","d":"Right Hand - Elbow (25 Mar) — Changing","cause":"تکرارپذیری پایین و نبود روتین ثابت در اجرای حرکت.","body":"کنترل آرنج، ثبات شانه و کتف","mind":"تمرکز پایین / روتین ناپایدار","drill":"Alignment mirror drill","aux":"Theraband draw + hold","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RSH3","sec":"Shoulder / شانه دست زه","sub":"زاویه بالا","d":"Right Hand - Shoulder (25 Mar) — Higher","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RSH4","sec":"Shoulder / شانه دست زه","sub":"زاویه پایین","d":"Right Hand - Shoulder (25 Mar) — Lower","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RSH5","sec":"Shoulder / شانه دست زه","sub":"زاویه داخلی","d":"Right Hand - Shoulder (25 Mar) — Inner","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"RSH6","sec":"Shoulder / شانه دست زه","sub":"زاویه خارجی","d":"Right Hand - Shoulder (25 Mar) — Outer","cause":"کنترل زاویه مفصل یا راستای بدن ناکافی است.","body":"ثبات کتف، دلتوئید، سراتوس، تراپز پایین","mind":"تمرکز، روتین قبل از شلیک","drill":"Scapular set drill","aux":"Serratus wall slide / کش تمرینی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"P01","sec":"Psychology / ذهنی","sub":"ریتم و صبر","d":"عجله — رها کردن تیر قبل از آمادگی کامل","cause":"عامل ذهنی باعث افت کیفیت تصمیم و اجرای تکنیک شده است.","body":"ارتباط غیرمستقیم با تنفس و تنش عضلانی","mind":"تمرکز، روتین قبل از شلیک","drill":"تمرین آرامش؛ شمارش ذهنی قبل از رها کردن","aux":"ثبت در دفترچه و کنترل توسط مربی","sev":"پایین","w":3,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"P02","sec":"Psychology / ذهنی","sub":"کنترل اضطراب","d":"استرس — اضطراب بالا در جلسه که بر عملکرد اثر گذاشت","cause":"عامل ذهنی باعث افت کیفیت تصمیم و اجرای تکنیک شده است.","body":"ارتباط غیرمستقیم با تنفس و تنش عضلانی","mind":"تمرکز، روتین قبل از شلیک","drill":"تنفس عمیق؛ تکنیک‌های ذهن‌آگاهی؛ روتین","aux":"ثبت در دفترچه و کنترل توسط مربی","sev":"متوسط","w":4,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"P03","sec":"Psychology / ذهنی","sub":"بی‌توجهی آگاهانه به تکنیک صحیح","d":"سهل‌انگاری عمدی — بی‌توجهی آگاهانه به تکنیک صحیح","cause":"عامل ذهنی باعث افت کیفیت تصمیم و اجرای تکنیک شده است.","body":"ارتباط غیرمستقیم با تنفس و تنش عضلانی","mind":"تمرکز، روتین قبل از شلیک","drill":"هدف‌گذاری مجدد؛ ثبت دقیق در دفترچه","aux":"ثبت در دفترچه و کنترل توسط مربی","sev":"بالا","w":5,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"P04","sec":"Psychology / ذهنی","sub":"تمرکز","d":"عدم تمرکز — حواس‌پرتی یا از دست دادن تمرکز","cause":"عامل ذهنی باعث افت کیفیت تصمیم و اجرای تکنیک شده است.","body":"ارتباط غیرمستقیم با تنفس و تنش عضلانی","mind":"تمرکز، روتین قبل از شلیک","drill":"تمرین مدیتیشن؛ روتین ذهنی قبل از تیر","aux":"ثبت در دفترچه و کنترل توسط مربی","sev":"بالا","w":5,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."},{"c":"P05","sec":"Psychology / ذهنی","sub":"نگه‌داشتن بیش از حد کمان زیر فشار","d":"خطا تأخیر — نگه‌داشتن بیش از حد کمان زیر فشار","cause":"عامل ذهنی باعث افت کیفیت تصمیم و اجرای تکنیک شده است.","body":"ارتباط غیرمستقیم با تنفس و تنش عضلانی","mind":"تمرکز، روتین قبل از شلیک","drill":"تمرین Clicker؛ مدیریت زمان رها کردن","aux":"ثبت در دفترچه و کنترل توسط مربی","sev":"بالا","w":5,"low":"اگر آمادگی روزانه زرد/قرمز بود، حجم تیر و فشار بدنسازی کاهش یابد و تمرکز روی تکنیک سبک باشد."}]</script>
+    <script>
+        const ERR_DB = JSON.parse(document.getElementById('errDB').textContent);
+        const SEV_F = {"بالا":3,"متوسط":2,"پایین":1};
+        const PHASE_SEC = {
+            setup: /Start|Stance|Set-up|Grip|Body|Head|Alignment/,
+            draw: /Draw|Anchor|Aim|Expansion|Elbow|Shoulder|Head|Body|String|Alignment|Grip/,
+            release: /Release|Follow|Clicker|Breathing|Fingers|Wrist/
+        };
+        let lastLm = null;
+        window.addEventListener('load', () => renderErrors());
+        let lmHist = [];
+        const codeRow = (c, re) => { const m = ERR_DB.filter(r => String(r.c).toUpperCase() === c); return (re && m.find(r => re.test(r.d))) || m[0]; };
+        const std = a => { const m = a.reduce((s,v)=>s+v,0)/a.length; return Math.sqrt(a.reduce((s,v)=>s+(v-m)*(v-m),0)/a.length); };
+
+        // تشخیص خطاهای قابل اندازه‌گیری با زاویه‌ها. آستانه‌های سر/تنه/ارتفاع آرنج تقریبی‌اند.
+        function detectMeasurable(lm, side) {
+            const bow = side === 'L' ? [11,13,15] : [12,14,16];
+            const drw = side === 'L' ? [12,14,16] : [11,13,15];
+            const P = personalProfile, hits = [];
+            const add = (c, why, mag) => hits.push({c, why, mag});
+            const sw = Math.hypot(lm[11].x-lm[12].x, lm[11].y-lm[12].y) || 0.1;
+            const bowAng = calculateAngle(lm[bow[0]], lm[bow[1]], lm[bow[2]]);
+            if (bowAng < P.bowArmTarget - P.toleranceBowArm) { add('LE2', `زاویه دست کمان ${bowAng}° (هدف ${P.bowArmTarget}°)`, P.bowArmTarget-bowAng); add('LE4', 'خم‌شدن آرنج کمان', P.bowArmTarget-bowAng-1); }
+            // ارتفاع آرنج کشش نسبت به خط شانه
+            const rel = (lm[drw[1]].y - lm[drw[0]].y) / sw;
+            if (rel < -0.25) add('RE3', 'آرنج کشش بالاتر از خط شانه', -rel*10);
+            else if (rel > 0.25) add('RE4', 'آرنج کشش پایین‌تر از خط شانه', rel*10);
+            // اختلاف ارتفاع شانه‌ها
+            const dsh = (lm[bow[0]].y - lm[drw[0]].y) / sw * 57.3 / 1;
+            const slope = Math.abs(Math.atan2(lm[bow[0]].y-lm[drw[0]].y, Math.abs(lm[bow[0]].x-lm[drw[0]].x)||1e-3)*180/Math.PI);
+            if (slope > P.shoulderSlopeMax) {
+                if (lm[bow[0]].y < lm[drw[0]].y) { add('LSH3', `شانه کمان بالاتر (${slope.toFixed(0)}°)`, slope); } else { add('LSH4', `شانه کمان پایین‌تر (${slope.toFixed(0)}°)`, slope); add('RSH3', 'شانه زه بالاتر', slope-1); }
+            }
+            // کجی سر
+            const roll = Math.atan2(lm[7].y-lm[8].y, Math.abs(lm[7].x-lm[8].x)||1e-3)*180/Math.PI;
+            if (Math.abs(roll) > P.headTiltMax) add(roll > 0 ? 'H6' : 'H5', `کجی سر ${Math.abs(roll).toFixed(0)}°`, Math.abs(roll));
+            // خم‌شدگی جانبی تنه (اگر لگن دیده شود)
+            if ((lm[23].visibility??0) > 0.5 && (lm[24].visibility??0) > 0.5) {
+                const sx=(lm[11].x+lm[12].x)/2, sy=(lm[11].y+lm[12].y)/2, hx=(lm[23].x+lm[24].x)/2, hy=(lm[23].y+lm[24].y)/2;
+                const lean = Math.atan2(sx-hx, hy-sy)*180/Math.PI;
+                if (Math.abs(lean) > 8) add(lean > 0 ? 'B6|Right Lateral' : 'B7|Left Lateral', `خم‌شدگی تنه ${Math.abs(lean).toFixed(0)}°`, Math.abs(lean));
+            }
+            // جابه‌جایی وزن بدن (فقط با دیده‌شدن لگن و مچ پا)
+            if ((lm[27].visibility??0) > 0.5 && (lm[28].visibility??0) > 0.5 && (lm[23].visibility??0) > 0.5) {
+                const stW = Math.abs(lm[27].x-lm[28].x) || 0.05;
+                const off = ((lm[23].x+lm[24].x)/2 - (lm[27].x+lm[28].x)/2) / stW;
+                if (Math.abs(off) > 0.35) add(off > 0 ? 'B10|Left Leg' : 'B11|Right Leg', 'انتقال وزن به یک پا', Math.abs(off)*10);
+            }
+            // نوسان در 1.5 ثانیه اخیر
+            if (lmHist.length >= 12) {
+                const sdv = (i, ax) => std(lmHist.map(s => s.lm[i][ax]))/sw;
+                const head = Math.max(sdv(0,'x'), sdv(0,'y'));
+                if (head > 0.04) add('H9', `ناپایداری سر (نوسان ${(head*100).toFixed(0)}٪ عرض شانه)`, head*100);
+                const body = Math.max(sdv(11,'x'), sdv(12,'x'), sdv(11,'y'), sdv(12,'y'));
+                if (body > 0.05) add('B12', `نوسان بدن (${(body*100).toFixed(0)}٪)`, body*100);
+                const wr = Math.max(sdv(drw[2],'x'), sdv(drw[2],'y'));
+                if (wr > 0.07) add('F11', `ناپایداری دست زه/انکر (${(wr*100).toFixed(0)}٪)`, wr*100);
+                const el = Math.max(sdv(bow[1],'x'), sdv(bow[1],'y'));
+                if (el > 0.07) add('LE2', `نوسان آرنج کمان (${(el*100).toFixed(0)}٪)`, el*100);
+            }
+            return hits;
+        }
+
+        let lastOut = [], lastRender = 0;
+        function renderErrors() {
+            const box = document.getElementById('errPanel'), list = document.getElementById('errList');
+            box.style.display = 'block';
+            const side = document.getElementById('bowSideSel').value;
+            const hits = lastLm ? detectMeasurable(lastLm, side) : [];
+            const seen = new Set(), out = [];
+            hits.sort((a,b)=>b.mag-a.mag).forEach(h => {
+                const [c, hint] = h.c.split('|');
+                const r = codeRow(c, hint && new RegExp(hint)); if (!r || seen.has(r)) return;
+                seen.add(r); out.push({r, why:h.why, hit:true});
+            });
+            lastOut = out.slice(0,10);
+            let html = `<div class="err-row"><b>تعداد خطای تشخیص‌داده‌شده: ${lastOut.length} از 10</b>` +
+                (lastLm ? '' : ' — 📷 بدنی در کادر نیست') + '</div>';
+            for (let k = 0; k < 10; k++) {
+                const o = lastOut[k];
+                html += o ? `<div class="err-item hit"><b>${k+1}. ${o.r.c.toUpperCase()}</b> — ${o.r.d}<br>🔴 ${o.why}<br>
+                    ${o.r.drill ? '🎯 اصلاح/تمرین: '+o.r.drill : ''}</div>`
+                    : `<div class="err-item" style="opacity:.45">${k+1}. —</div>`;
+            }
+            list.innerHTML = html;
+        }
+    </script>
+    <script>
+        // احراز هویت هش‌شده
+        const SECURE_HASH = "5f64f5aa23cc4318a925608861b31455e409bee91daafde093c538897dae9241";
+
+        async function sha256(str) {
+            const buffer = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function checkAccess() {
+            const inputVal = document.getElementById('passInput').value;
+            const inputHash = await sha256(inputVal);
+            if (inputHash === SECURE_HASH) {
+                localStorage.setItem("sa_auth_token", "authorized_user");
+                document.getElementById('authOverlay').style.display = 'none';
+            } else {
+                document.getElementById('authError').innerText = "رمز عبور نادرست است!";
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem("sa_auth_token") === "authorized_user") {
+                document.getElementById('authOverlay').style.display = 'none';
+            }
+            document.getElementById('passInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') checkAccess();
+            });
+            loadPersonalCalibration();
+        });
+
+        // سیستم بیومکانیک و کالیبراسیون
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const loadingStatus = document.getElementById('loadingStatus');
+
+        let poseDetector = null;
+        let camera = null;
+        let currentFacingMode = "user";
+
+        let sessionLogs = [];
+        let currentMetrics = {
+            drawElbow: 0,
+            bowArm: 0,
+            headTilt: 0,
+            shoulderSlope: 0,
+            headStatus: "--",
+            shoulderStatus: "--"
+        };
+
+        // مقادیر کالیبراسیون آناتومی شخصی
+        let personalProfile = {
+            drawElbowTarget: 45,
+            bowArmTarget: 175,
+            headTiltMax: 4,
+            shoulderSlopeMax: 4,
+            toleranceElbow: 10,
+            toleranceBowArm: 6,
+            isCustom: false,
+            version: 2
+        };
+
+        function loadPersonalCalibration() {
+            const saved = localStorage.getItem("sa_personal_profile");
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.version !== 2) { localStorage.removeItem("sa_personal_profile"); return; } // واحدهای قدیمی (درصد)
+                    personalProfile = parsed;
+                    document.getElementById('calibLabel').innerText = `اختصاصی (آرنج: ${personalProfile.drawElbowTarget}° / دست: ${personalProfile.bowArmTarget}°)`;
+                    document.getElementById('calibLabel').style.color = '#00e676';
+                } catch(e) {}
+            }
+        }
+
+        const $ = id => document.getElementById(id);
+        let calibBusy = false;
+
+        function applyCalibLabel() {
+            $('calibLabel').innerText = `اختصاصی (آرنج: ${personalProfile.drawElbowTarget}° / دست: ${personalProfile.bowArmTarget}°)`;
+            $('calibLabel').style.color = '#00e676';
+        }
+
+        function fillCalibForm(p) {
+            $('cfgElbow').value = p.drawElbowTarget;
+            $('cfgTolElbow').value = p.toleranceElbow;
+            $('cfgBowArm').value = p.bowArmTarget;
+            $('cfgTolBow').value = p.toleranceBowArm;
+            $('cfgHead').value = p.headTiltMax;
+            $('cfgShoulder').value = p.shoulderSlopeMax;
+        }
+
+        function openCalibDialog() {
+            fillCalibForm(personalProfile);
+            $('calibMsg').innerText = '';
+            $('calibModal').classList.add('open');
+        }
+
+        function closeCalibDialog() {
+            if (calibBusy) return;
+            $('calibModal').classList.remove('open');
+        }
+
+        const median = arr => { const a = [...arr].sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; };
+
+        // ثبت از دوربین: ۳ ثانیه آماده‌باش، سپس ۳۰ نمونه در ~۳ ثانیه؛ میانه‌ی نمونه‌ها استفاده می‌شود
+        async function captureCalibration() {
+            if (calibBusy) return;
+            if (!currentMetrics || currentMetrics.drawElbow === 0) {
+                $('calibMsg').innerText = 'بدنی شناسایی نشده است. دوربین را روشن کنید و کامل در کادر بایستید.';
+                return;
+            }
+            calibBusy = true;
+            const btn = $('calibCaptureBtn');
+            btn.disabled = true;
+            for (let i = 3; i > 0; i--) {
+                $('calibMsg').innerText = `آماده شوید و در کشش کامل ثابت بمانید... ${i}`;
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            const S = { elbow: [], bow: [], head: [], shoulder: [] };
+            let tries = 0;
+            while (S.elbow.length < 30 && tries++ < 60) {
+                $('calibMsg').innerText = `در حال ثبت... ${S.elbow.length}/30 (ثابت بمانید)`;
+                const m = currentMetrics;
+                if (m && m.drawElbow !== 0) {
+                    S.elbow.push(m.drawElbow); S.bow.push(m.bowArm);
+                    S.head.push(m.headTilt); S.shoulder.push(m.shoulderSlope);
+                }
+                await new Promise(r => setTimeout(r, 100));
+            }
+            calibBusy = false;
+            btn.disabled = false;
+
+            if (S.elbow.length < 20) {
+                $('calibMsg').innerText = 'بدن در حین ثبت بارها از کادر خارج شد. دوباره تلاش کنید.';
+                return;
+            }
+            const spread = Math.max(...S.elbow) - Math.min(...S.elbow);
+            const spreadBow = Math.max(...S.bow) - Math.min(...S.bow);
+            if (spread > 15 || spreadBow > 15) {
+                $('calibMsg').innerText = `حرکت زیاد بود (نوسان آرنج ${spread}°، دست کمان ${spreadBow}°). در حالت ثابت دوباره ثبت کنید. اعداد تغییر نکردند.`;
+                return;
+            }
+            const head = median(S.head), shoulder = median(S.shoulder);
+            fillCalibForm({
+                drawElbowTarget: median(S.elbow),
+                bowArmTarget: median(S.bow),
+                toleranceElbow: Math.max(6, Math.ceil(spread / 2) + 4),
+                toleranceBowArm: Math.max(6, Math.ceil(spreadBow / 2) + 4),
+                headTiltMax: Math.min(6, Math.max(4, head + 1)),
+                shoulderSlopeMax: Math.min(6, Math.max(4, shoulder + 1))
+            });
+            let msg = `ثبت شد (${S.elbow.length} نمونه). اعداد را بررسی و «ذخیره» را بزنید.`;
+            if (head > 5 || shoulder > 5) msg += ` هشدار: کجی سر (${head}°) یا شانه (${shoulder}°) در این کشش زیاد بود؛ حد مجاز به ۶° محدود شد تا فرم بد معیار نشود.`;
+            $('calibMsg').innerText = msg;
+        }
+
+        function saveCalibrationForm() {
+            const spec = [
+                ['cfgElbow', 'drawElbowTarget', 0, 180],
+                ['cfgTolElbow', 'toleranceElbow', 1, 30],
+                ['cfgBowArm', 'bowArmTarget', 90, 180],
+                ['cfgTolBow', 'toleranceBowArm', 1, 30],
+                ['cfgHead', 'headTiltMax', 1, 15],
+                ['cfgShoulder', 'shoulderSlopeMax', 1, 15]
+            ];
+            const next = { ...personalProfile };
+            for (const [id, key, lo, hi] of spec) {
+                const v = Number($(id).value);
+                if ($(id).value === '' || !Number.isFinite(v) || v < lo || v > hi) {
+                    $('calibMsg').innerText = `مقدار نامعتبر: ${$(id).previousElementSibling.innerText} (بازه مجاز ${lo} تا ${hi})`;
+                    return;
+                }
+                next[key] = Math.round(v);
+            }
+            next.isCustom = true;
+            next.version = 2;
+            personalProfile = next;
+            localStorage.setItem("sa_personal_profile", JSON.stringify(personalProfile));
+            applyCalibLabel();
+            $('calibMsg').innerText = '';
+            calibBusy = false;
+            $('calibModal').classList.remove('open');
+        }
+
+        function resetCalibration() {
+            localStorage.removeItem("sa_personal_profile");
+            personalProfile = {
+                drawElbowTarget: 45,
+                bowArmTarget: 175,
+                headTiltMax: 4,
+                shoulderSlopeMax: 4,
+                toleranceElbow: 10,
+                toleranceBowArm: 6,
+                isCustom: false,
+                version: 2
+            };
+            document.getElementById('calibLabel').innerText = "تنظیم پیش‌فرض";
+            document.getElementById('calibLabel').style.color = '#ff9800';
+            alert("کالیبراسیون به حالت پیش‌فرض بازگشت.");
+        }
+
+        // مختصات نرمال‌شده (۰ تا ۱) روی x و y مقیاس متفاوت دارند؛ قبل از زاویه به پیکسل تبدیل می‌شوند
+        function calculateAngle(A, B, C) {
+            const W = canvasElement.width, H = canvasElement.height;
+            const radians = Math.atan2((C.y - B.y) * H, (C.x - B.x) * W) - Math.atan2((A.y - B.y) * H, (A.x - B.x) * W);
+            let angle = Math.abs(radians * 180.0 / Math.PI);
+            if (angle > 180.0) angle = 360 - angle;
+            return Math.round(angle);
+        }
+
+        // شیب خط بین دو نقطه نسبت به افق، به درجه (در فضای پیکسل)
+        function lineTiltDeg(P, Q) {
+            const W = canvasElement.width, H = canvasElement.height;
+            let d = Math.atan2((Q.y - P.y) * H, (Q.x - P.x) * W) * 180 / Math.PI;
+            if (d > 90) d -= 180;
+            if (d < -90) d += 180;
+            return Math.abs(Math.round(d));
+        }
+
+        // سیستم تحلیل عیب‌یابی و تمرین اصلاحی
+        function diagnoseAndRecommend(metrics, profile) {
+            const drawDiff = Math.abs(metrics.drawElbow - profile.drawElbowTarget);
+            const bowDiff = Math.abs(metrics.bowArm - profile.bowArmTarget);
+
+            let diagnosis = "ایده‌آل (Optimal)";
+            let drill = "فرم در دامنه استاندارد است؛ ادامه شلیک بدون تغییر";
+            let priority = "سبک";
+
+            if (metrics.headTilt > profile.headTiltMax) {
+                diagnosis = "انحراف و ناپایداری سر در انکر";
+                drill = "تمرین ثبات سر مقابل آینه با کش تمرینی (CLBWH)، ۳ ست ۳۰ ثانیه نگهداشت انکر بدون رهایی";
+                priority = "بالا";
+            } else if (metrics.shoulderSlope > profile.shoulderSlopeMax) {
+                diagnosis = "بالا آمدن شانه یا عدم تقارن ترقوه";
+                drill = "تمرین فعال‌سازی رومبوئید و پایین‌آوردن کتف (Scapular Depression) با کش سبک، ۳ ست ۱۲ تکرار";
+                priority = "بالا";
+            } else if (drawDiff > profile.toleranceElbow) {
+                diagnosis = `انحراف آرنج کشش (${drawDiff}° اختلاف)`;
+                drill = "تمرین چرخش به خط نیرو و امتداد خط دراو با کش، ۳ ست ۱۰ تکرار با تمرکز بر آرنج پشتی";
+                priority = "متوسط";
+            } else if (bowDiff > profile.toleranceBowArm) {
+                diagnosis = `افت زاویه دست کمان (${bowDiff}° اختلاف)`;
+                drill = "تمرین هل دادن به سمت هدف (Push-Pull Balance) و قفل نرم مفصل دست کمان، ۳ ست ۲۰ ثانیه";
+                priority = "متوسط";
+            }
+
+            return { diagnosis, drill, priority, drawDiff, bowDiff };
+        }
+
+        function onResults(results) {
+            loadingStatus.style.display = 'none';
+
+            // اندازه canvas دقیقاً برابر اندازه واقعی فریم دوربین (جلوگیری از کشیدگی و عدم انطباق)
+            const imgW = results.image.videoWidth || results.image.width;
+            const imgH = results.image.videoHeight || results.image.height;
+            if (imgW && imgH && (canvasElement.width !== imgW || canvasElement.height !== imgH)) {
+                canvasElement.width = imgW;
+                canvasElement.height = imgH;
+                document.querySelector('.camera-container').style.aspectRatio = `${imgW} / ${imgH}`;
+            }
+            const W = canvasElement.width, H = canvasElement.height;
+            const mirrored = (currentFacingMode === "user");
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, W, H);
+            // آینه‌سازی فقط برای دوربین جلو؛ تصویر و اسکلت با هم آینه می‌شوند
+            if (mirrored) { canvasCtx.translate(W, 0); canvasCtx.scale(-1, 1); }
+            canvasCtx.drawImage(results.image, 0, 0, W, H);
+
+            if (results.poseLandmarks) {
+                drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00e676', lineWidth: 3});
+                drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#ff5252', lineWidth: 1, radius: 4});
+                canvasCtx.setTransform(1, 0, 0, 1, 0, 0); // متن‌ها آینه نشوند
+
+                const lm = results.poseLandmarks;
+
+                // گام ۱: اگر اندام‌های کلیدی خارج از کادر یا نامطمئن باشند، زاویه ثبت نمی‌شود
+                const keyIdx = [7, 8, 11, 12, 13, 14, 15, 16];
+                const visOK = keyIdx.every(i => (lm[i].visibility ?? 1) >= 0.6);
+                if (!visOK) {
+                    document.getElementById('headStabilityVal').innerText = 'خارج از کادر';
+                    document.getElementById('shoulderAlignVal').innerText = 'خارج از کادر';
+                    currentMetrics = null; lastLm = null;
+                    if (Date.now() - lastRender > 600) { lastRender = Date.now(); renderErrors(); }
+                    canvasCtx.restore();
+                    return;
+                }
+
+                const rightElbowAngle = calculateAngle(lm[12], lm[14], lm[16]);
+                const leftElbowAngle = calculateAngle(lm[11], lm[13], lm[15]);
+
+                const leftEar = lm[7];
+                const rightEar = lm[8];
+                const headTilt = lineTiltDeg(leftEar, rightEar);
+                const shoulderSlope = lineTiltDeg(lm[11], lm[12]);
+
+                const headStatus = (headTilt <= personalProfile.headTiltMax) ? "پایدار" : "انحراف سر";
+                const shoulderStatus = (shoulderSlope <= personalProfile.shoulderSlopeMax) ? "تراز" : "عدم تقارن";
+
+                lastLm = lm.map(p => ({x:p.x, y:p.y, visibility:p.visibility}));
+                lmHist.push({t:Date.now(), lm:lastLm}); while (lmHist.length && Date.now()-lmHist[0].t > 1500) lmHist.shift();
+                if (Date.now() - lastRender > 600) { lastRender = Date.now(); renderErrors(); }
+                currentMetrics = {
+                    drawElbow: rightElbowAngle,
+                    bowArm: leftElbowAngle,
+                    headTilt: headTilt,
+                    shoulderSlope: shoulderSlope,
+                    headStatus: headStatus,
+                    shoulderStatus: shoulderStatus
+                };
+
+                document.getElementById('drawElbowVal').innerText = rightElbowAngle + '°';
+                document.getElementById('bowArmVal').innerText = leftElbowAngle + '°';
+                document.getElementById('headStabilityVal').innerText = headStatus;
+                document.getElementById('shoulderAlignVal').innerText = shoulderStatus;
+
+                // نمایش زنده روی تصویر
+                canvasCtx.fillStyle = "#ffff00";
+                canvasCtx.font = "bold 18px Arial";
+                const px = (l) => (mirrored ? 1 - l.x : l.x) * W + 10;
+                canvasCtx.fillText(rightElbowAngle + "°", px(lm[14]), lm[14].y * H);
+                canvasCtx.fillText(leftElbowAngle + "°", px(lm[13]), lm[13].y * H);
+            }
+            canvasCtx.restore();
+        }
+
+        async function initSystem() {
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('flipBtn').style.display = 'inline-block';
+            document.getElementById('calibBtn').style.display = 'inline-block';
+            document.getElementById('snapBtn').style.display = 'inline-block';
+            document.getElementById('logBtn').style.display = 'inline-block';
+            document.getElementById('exportBtn').style.display = 'inline-block';
+            loadingStatus.style.display = 'block';
+
+            // گام ۱: اندازه canvas قبل از شروع دوربین تنظیم می‌شود
+            canvasElement.width = 640;
+            canvasElement.height = 480;
+            document.querySelector('.camera-container').style.aspectRatio = '4 / 3';
+
+            // گام ۱: Pose فقط یک‌بار ساخته می‌شود (جلوگیری از نشت حافظه/WebGL)
+            if (!poseDetector) {
+                poseDetector = new Pose({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
+                });
+                poseDetector.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                poseDetector.onResults(onResults);
+            }
+
+            if (camera) { await camera.stop(); camera = null; }
+
+            camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await poseDetector.send({image: videoElement});
+                },
+                width: 640,
+                height: 480,
+                facingMode: currentFacingMode
+            });
+
+            await camera.start();
+            loadingStatus.style.display = 'none';
+        }
+
+        async function toggleCamera() {
+            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+            await initSystem();
+        }
+
+        function takeSnapshot() {
+            const link = document.createElement('a');
+            const now = new Date().toISOString().replace(/[:.]/g, "-");
+            link.download = `SilentArrows_Snapshot_${now}.png`;
+            link.href = canvasElement.toDataURL("image/png");
+            link.click();
+            renderErrors();
+            document.getElementById('errPanel').scrollIntoView({behavior:'smooth'});
+        }
+
+        function logCurrentShot() {
+            if (!currentMetrics || currentMetrics.drawElbow === 0) {
+                alert("بدنی در کادر شناسایی نشده است.");
+                return;
+            }
+
+            const shotNumber = sessionLogs.length + 1;
+            const timeStr = new Date().toLocaleTimeString('fa-IR');
+            const analysis = diagnoseAndRecommend(currentMetrics, personalProfile);
+
+            sessionLogs.push({
+                shot: shotNumber,
+                time: timeStr,
+                drawElbow: currentMetrics.drawElbow,
+                drawTarget: personalProfile.drawElbowTarget,
+                drawDiff: analysis.drawDiff,
+                bowArm: currentMetrics.bowArm,
+                bowTarget: personalProfile.bowArmTarget,
+                bowDiff: analysis.bowDiff,
+                headTilt: currentMetrics.headTilt,
+                headStatus: currentMetrics.headStatus,
+                shoulderSlope: currentMetrics.shoulderSlope,
+                shoulderStatus: currentMetrics.shoulderStatus,
+                codes: lastOut.map(o => o.r.c).join(' | '),
+                codeDrills: lastOut.map(o => o.r.c + ': ' + (o.r.drill || '')).join(' ; '),
+                diagnosis: analysis.diagnosis,
+                drill: analysis.drill,
+                priority: analysis.priority
+            });
+
+            document.getElementById('shotCount').innerText = shotNumber;
+            alert(`تیر شماره ${shotNumber} ثبت شد.\nتشخیص: ${analysis.diagnosis}\nاولویت: ${analysis.priority}`);
+        }
+
+        function exportToCSV() {
+            if (sessionLogs.length === 0) {
+                alert("هنوز هیچ تیری ثبت نشده است! ابتدا دکمه «ثبت تیر» را بزنید.");
+                return;
+            }
+
+            let csvContent = "\uFEFF"; // کدگذاری BOM برای سازگاری کامل زبان فارسی در Excel
+            csvContent += "شماره تیر,زمان ثبت,زاویه آرنج کشش,هدف شخصی آرنج,انحراف از هدف,زاویه دست کمان,هدف شخصی دست کمان,انحراف از هدف,شاخص انحراف سر,وضعیت سر,شاخص شیب شانه,وضعیت شانه,تشخیص اصلی خطا,تمرین اصلاحی پیشنهادی,سطح اولویت,کدهای خطا (* = تشخیص خودکار),تمرین هر کد\n";
+
+            sessionLogs.forEach(row => {
+                // پاک‌سازی کاما جهت حفظ ساختار ستون‌های CSV
+                const cleanDiagnosis = `"${row.diagnosis.replace(/"/g, '""')}"`;
+                const cleanDrill = `"${row.drill.replace(/"/g, '""')}"`;
+
+                csvContent += `${row.shot},${row.time},${row.drawElbow},${row.drawTarget},${row.drawDiff},${row.bowArm},${row.bowTarget},${row.bowDiff},${row.headTilt},${row.headStatus},${row.shoulderSlope},${row.shoulderStatus},${cleanDiagnosis},${cleanDrill},${row.priority},"${row.codes}","${row.codeDrills.replace(/"/g,'""')}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const dateStr = new Date().toISOString().slice(0, 10);
+            link.href = URL.createObjectURL(blob);
+            link.download = `SilentArrows_Analysis_${dateStr}.csv`;
+            link.click();
+        }
+    </script>
+</body>
+</html>
